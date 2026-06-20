@@ -1,0 +1,23 @@
+# Build
+build/
+dist/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Doxygen
+doc/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Misc local folders
+appGame/
+
+# Compiled output
+*.o
+*.exe
