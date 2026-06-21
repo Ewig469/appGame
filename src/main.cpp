@@ -42,19 +42,52 @@ int main(int argc, char* argv[]) {
                              std::to_string(settings.board_config.rotation) +
                              "°");
 
-        // Kurzer Test der Basistypen
-        bruecken::Position test_pos{3, 7};
-        preset::Logger::debug("Test-Position: " +
-                              std::to_string(test_pos.x) + "," +
-                              std::to_string(test_pos.y));
-
         preset::Logger::info("Board-Grenzen: " +
                              std::to_string(bruecken::kBoardMinSize) + ".." +
                              std::to_string(bruecken::kBoardMaxSize));
-        preset::Logger::info("Standard-Fenster: " +
-                             std::to_string(bruecken::kDefaultWindowSize) + "px");
 
-        // TODO: Board erstellen
+        // --- Board-Test ---
+        bruecken::Board board(
+            settings.board_config.width,
+            settings.board_config.height,
+            settings.board_config.rotation);
+
+        preset::Logger::info("Board erstellt: " +
+                             std::to_string(board.get_width()) + "x" +
+                             std::to_string(board.get_height()));
+
+        // Einfacher Zug-Test
+        preset::Move m1(3, 3, 1);
+        if (board.is_valid_move(m1)) {
+            board.apply_move(m1);
+            preset::Logger::info("Zug 1 ok: (3,3)");
+        }
+
+        preset::Move m2(4, 5, 2);
+        if (board.is_valid_move(m2)) {
+            board.apply_move(m2);
+            preset::Logger::info("Zug 2 ok: (4,5)");
+        }
+
+        // Roesselsprung-Test
+        preset::Move m3(5, 4, 1);
+        if (board.is_valid_move(m3)) {
+            board.apply_move(m3);
+            preset::Logger::info("Zug 3 ok: (5,4) — sollte Bruecke bauen");
+        }
+
+        preset::Logger::info("Steine: " + std::to_string(board.get_pegs().size()));
+        preset::Logger::info("Bruecken: " + std::to_string(board.get_bridges().size()));
+
+        std::string phase_str;
+        switch (board.get_phase()) {
+            case bruecken::GamePhase::kNotStarted: phase_str = "Nicht gestartet"; break;
+            case bruecken::GamePhase::kInProgress: phase_str = "Laeuft"; break;
+            case bruecken::GamePhase::kFinished:   phase_str = "Zu Ende"; break;
+            case bruecken::GamePhase::kDraw:       phase_str = "Unentschieden"; break;
+        }
+        preset::Logger::info("Spielphase: " + phase_str);
+
         // TODO: Players erstellen (via settings.player_types)
         // TODO: GUI initialisieren (wenn HUMAN beteiligt oder --gui)
         // TODO: Spielschleife starten
