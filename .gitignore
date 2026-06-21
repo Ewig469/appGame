@@ -18,6 +18,9 @@ Thumbs.db
 # Misc local folders
 appGame/
 
+# Local raylib (platform-specific binaries)
+lib/raylib/
+
 # Compiled output
 *.o
 *.exe

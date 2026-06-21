@@ -4,7 +4,6 @@ if(CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang")
     add_compile_options(-Wall -Wextra -Wpedantic -Werror)
 endif()
 
-# Replace with your actual project name
 set(PROJECT_NAME "bruecken_spiel")
 
 project(${PROJECT_NAME}
@@ -13,18 +12,39 @@ project(${PROJECT_NAME}
     LANGUAGES CXX
 )
 
-# Generate compile_commands.json for IDE support
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
 # -------------------------------------------------------------------
-# Dependencies
-# -------------------------------------------------------------------
-
 # Preset library (bundled)
+# -------------------------------------------------------------------
 add_subdirectory(lib/preset)
 
+# -------------------------------------------------------------------
 # Raylib 6.0
-find_package(raylib 6.0 REQUIRED)
+# -------------------------------------------------------------------
+# Auf CIP-Pool (Ubuntu): systemweit installiert → find_package greift.
+# Auf Windows/Mac: lokale Kopie unter lib/raylib/ wird verwendet.
+find_package(raylib 6.0 QUIET)
+
+if(NOT raylib_FOUND)
+    message(STATUS "raylib nicht via find_package gefunden, verwende lokale Kopie")
+
+    set(RAYLIB_ROOT "${CMAKE_CURRENT_SOURCE_DIR}/lib/raylib")
+    set(RAYLIB_INCLUDE "${RAYLIB_ROOT}/include")
+    if(WIN32)
+        set(RAYLIB_LIB "${RAYLIB_ROOT}/lib/libraylib.a")
+    else()
+        set(RAYLIB_LIB "${RAYLIB_ROOT}/lib/libraylib.a")
+    endif()
+
+    add_library(raylib STATIC IMPORTED GLOBAL)
+    target_include_directories(raylib INTERFACE "${RAYLIB_INCLUDE}")
+    set_target_properties(raylib PROPERTIES IMPORTED_LOCATION "${RAYLIB_LIB}")
+
+    if(WIN32)
+        target_link_libraries(raylib INTERFACE winmm gdi32 opengl32)
+    endif()
+endif()
 
 # -------------------------------------------------------------------
 # Project executable
@@ -37,7 +57,6 @@ target_include_directories(${PROJECT_NAME}
     include
 )
 
-# Collect source files
 file(GLOB_RECURSE PROJECT_SOURCES
     "src/*.cpp"
 )
