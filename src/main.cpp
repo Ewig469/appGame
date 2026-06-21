@@ -9,6 +9,7 @@
 
 #include "argument_parser.h"
 #include "logger.h"
+#include "move.h"
 #include "bruecken/bruecken.h"
 
 int main(int argc, char* argv[]) {

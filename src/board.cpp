@@ -106,7 +106,7 @@ bool Board::is_occupied(const Position& pos) const {
 // Zug
 // =====================================================================
 
-bool Board::is_valid_move(const preset::Move& move) const {
+bool Board::is_valid_move(preset::Move move) const {
     int pid = move.get_id() - 1;  // preset::Move IDs sind 1-basiert
     Position pos{move.get_x(), move.get_y()};
 
@@ -117,7 +117,7 @@ bool Board::is_valid_move(const preset::Move& move) const {
     return true;
 }
 
-void Board::apply_move(const preset::Move& move) {
+void Board::apply_move(preset::Move move) {
     if (phase_ == GamePhase::kFinished || phase_ == GamePhase::kDraw) {
         throw std::runtime_error("Spiel ist bereits beendet.");
     }
