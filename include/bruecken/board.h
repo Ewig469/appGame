@@ -11,6 +11,8 @@
 
 #include "bruecken/common.h"
 
+namespace preset { class Move; }
+
 namespace bruecken {
 
 /**
@@ -83,7 +85,7 @@ public:
      *  - Position im spielbaren Bereich des Spielers
      *  - Feld nicht bereits belegt
      */
-    bool is_valid_move(const Move& move) const;
+    bool is_valid_move(const preset::Move& move) const;
 
     /**
      * @brief Fuehrt einen zuvor validierten Zug aus.
@@ -91,7 +93,7 @@ public:
      * Setzt den Stein, generiert ggf. neue Bruecken und prueft
      * auf Spielende. Wirft bei ungueltigem Zug.
      */
-    void apply_move(const Move& move);
+    void apply_move(const preset::Move& move);
 
     // =================================================================
     // Spielende
