@@ -55,6 +55,7 @@ add_executable(${PROJECT_NAME})
 target_include_directories(${PROJECT_NAME}
   PUBLIC
     include
+    lib/preset/include
 )
 
 file(GLOB_RECURSE PROJECT_SOURCES
@@ -72,4 +73,53 @@ target_link_libraries(${PROJECT_NAME}
   PUBLIC
     preset
     raylib
+)
+
+
+
+
+
+
+
+
+
+
+
+# ==========================================================
+# Player Tests
+# ==========================================================
+
+add_executable(test_player
+    tests/test_player.cpp
+    src/board.cpp
+    src/random_ai_player.cpp
+)
+
+target_include_directories(test_player
+    PRIVATE
+        include
+)
+
+target_link_libraries(test_player
+    PRIVATE
+        preset
+)
+
+
+
+
+add_executable(test_invalid_move
+    tests/test_invalid_move.cpp
+    src/board.cpp
+    src/random_ai_player.cpp
+)
+
+target_include_directories(test_invalid_move
+    PRIVATE
+        include
+)
+
+target_link_libraries(test_invalid_move
+    PRIVATE
+        preset
 )
