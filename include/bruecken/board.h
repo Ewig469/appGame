@@ -1,7 +1,7 @@
 /**
  * @file board.h
  * @brief Spielfeld-Klasse fuer Bruecken.
- * @author Ihr Name
+ * @author Zhibo Zhang
  */
 
 #pragma once

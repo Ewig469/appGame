@@ -1,7 +1,7 @@
 /**
  * @file common.h
  * @brief Projektweite Basistypen und Konstanten im Namespace bruecken.
- * @author Ihr Name
+ * @author Zhibo Zhang
  */
 
 #pragma once

@@ -1,7 +1,7 @@
 /**
  * @file board.cpp
  * @brief Implementierung der Spielfeld-Klasse.
- * @author Ihr Name
+ * @author Zhibo Zhang
  */
 
 #include "bruecken/board.h"
