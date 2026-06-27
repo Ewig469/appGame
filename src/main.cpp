@@ -1,7 +1,7 @@
 /**
  * @file main.cpp
  * @brief Haupteinstiegspunkt des Bruecken-Spiels.
- * @author Ihr Name
+ * @author 
  */
 
 #include <iostream>

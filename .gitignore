@@ -24,3 +24,7 @@ lib/raylib/
 # Compiled output
 *.o
 *.exe
+
+# Local Codex files
+.agents/
+.codex_tmp/
