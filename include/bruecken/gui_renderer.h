@@ -1,54 +1,58 @@
 /**
  * @file gui_renderer.h
- * @brief Reine Raylib-Darstellung fuer das Bruecken-Spiel.
+ * @brief Raylib GUI for the Bruecken game.
  * @author Hao Guo
  */
 
 #pragma once
 
+#include <optional>
 #include <string>
 #include <vector>
 
 #include "bruecken/board.h"
+#include "player_gui_access.h"
 
 namespace bruecken {
 
 /**
- * @brief Initialisiert das Fenster und zeichnet Brett, Steine und Bruecken.
- *
- * Der Renderer besitzt keine Eingabe- oder Spiellogik. Er liest bei jedem
- * Frame den aktuellen Zustand des uebergebenen Boards. Mausinteraktion,
- * Spielstatus und Spieleranbindung bleiben bewusst von der reinen
- * Darstellung getrennt.
+ * @brief Draws the board and provides mouse input to HumanPlayer.
  */
-class GuiRenderer final {
+class GuiRenderer final : public preset::PlayerGuiAccess {
 public:
-    /**
-     * @param board Das anzuzeigende Spielbrett.
-     * @param player_colors Spielerfarben als Hex-RGB-Strings.
-     * @param title Titel des Betriebssystemfensters.
-     */
-    GuiRenderer(const Board& board,
-                std::vector<std::string> player_colors,
-                std::string title = "BrueckenSpiel");
+    GuiRenderer(
+        const Board& board,
+        std::vector<std::string> player_colors,
+        std::vector<std::string> player_names,
+        std::string title = "BrueckenSpiel");
 
     ~GuiRenderer();
 
     GuiRenderer(const GuiRenderer&) = delete;
     GuiRenderer& operator=(const GuiRenderer&) = delete;
 
-    /** Fuehrt eine einfache, blockierende Raylib-Zeichenschleife aus. */
-    void run();
-
-    /** Zeichnet genau einen Frame aus dem aktuellen Board-Zustand. */
+    /** Draws one frame and processes a possible mouse click. */
     void draw_frame();
 
-    /** Gibt an, ob das Schliessen des Fensters angefordert wurde. */
+    /** Returns true if the user wants to close the window. */
     bool should_close() const;
+
+    /**
+     * Returns the last valid click to HumanPlayer.
+     * Every click is returned only once.
+     */
+    std::optional<preset::Move>
+    request_move_from_current_human_player() override;
 
 private:
     const Board& board_;
     std::vector<std::string> player_colors_;
+    std::vector<std::string> player_names_;
+
+    std::optional<preset::Move> pending_move_;
+    std::string feedback_;
+
+    int input_turn_ = -1;
     bool window_open_ = false;
 };
 
