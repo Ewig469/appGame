@@ -22,28 +22,25 @@ add_subdirectory(lib/preset)
 # -------------------------------------------------------------------
 # Raylib 6.0
 # -------------------------------------------------------------------
-# Auf CIP-Pool (Ubuntu): systemweit installiert → find_package greift.
-# Auf Windows/Mac: lokale Kopie unter lib/raylib/ wird verwendet.
-find_package(raylib 6.0 QUIET)
+include(FetchContent)
+
+set(RAYLIB_VERSION 6.0)
+
+find_package(raylib ${RAYLIB_VERSION} QUIET)
 
 if(NOT raylib_FOUND)
-    message(STATUS "raylib nicht via find_package gefunden, verwende lokale Kopie")
+    message(STATUS "raylib ${RAYLIB_VERSION} nicht gefunden, lade raylib automatisch herunter")
 
-    set(RAYLIB_ROOT "${CMAKE_CURRENT_SOURCE_DIR}/lib/raylib")
-    set(RAYLIB_INCLUDE "${RAYLIB_ROOT}/include")
-    if(WIN32)
-        set(RAYLIB_LIB "${RAYLIB_ROOT}/lib/libraylib.a")
-    else()
-        set(RAYLIB_LIB "${RAYLIB_ROOT}/lib/libraylib.a")
-    endif()
+    set(BUILD_EXAMPLES OFF CACHE BOOL "" FORCE)
+    set(BUILD_GAMES OFF CACHE BOOL "" FORCE)
 
-    add_library(raylib STATIC IMPORTED GLOBAL)
-    target_include_directories(raylib INTERFACE "${RAYLIB_INCLUDE}")
-    set_target_properties(raylib PROPERTIES IMPORTED_LOCATION "${RAYLIB_LIB}")
+    FetchContent_Declare(
+        raylib
+        URL https://github.com/raysan5/raylib/archive/refs/tags/${RAYLIB_VERSION}.tar.gz
+        DOWNLOAD_EXTRACT_TIMESTAMP OFF
+    )
 
-    if(WIN32)
-        target_link_libraries(raylib INTERFACE winmm gdi32 opengl32)
-    endif()
+    FetchContent_MakeAvailable(raylib)
 endif()
 
 # -------------------------------------------------------------------
