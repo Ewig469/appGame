@@ -18,7 +18,7 @@ struct Settings {
   /// Names of each of player.
   std::vector<std::string> player_names = {"Player 1", "Player 2"};
   /// List of player colors as hexadecimal RGB values.
-  std::vector<std::string> player_colors = {"#ff0000", "0000ff"};
+  std::vector<std::string> player_colors = {"#ff0000", "#0000ff"};
   /// List of player types corrosponding to each player.
   std::vector<PlayerType> player_types = {PlayerType::HUMAN, PlayerType::HUMAN};
   /// Delay after a computer player has made its move.

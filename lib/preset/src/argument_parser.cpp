@@ -76,10 +76,12 @@ void ArgumentParser::print_help(){
             << "Raylib: " << RAYLIB_VERSION << std::endl
             << "  This project uses Raylib." << std::endl
             << "    Website: https://www.raylib.com/" << std::endl
-            << "    License: zlib" << std::endl
-            << "Implemented optional features:" << std::endl;
-  for (auto feature : settings_.implementedOptionalFeatures){
-    std::cout << "  - " << feature_string(feature) << std::endl;
+            << "    License: zlib" << std::endl;
+  if (!settings_.implementedOptionalFeatures.empty()){
+    std::cout << "Implemented optional features:" << std::endl;
+    for (auto feature : settings_.implementedOptionalFeatures){
+      std::cout << "  - " << feature_string(feature) << std::endl;
+    }
   }
   std::cout << std::endl;
 }
