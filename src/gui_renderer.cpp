@@ -1,7 +1,14 @@
 /**
  * @file gui_renderer.cpp
- * @brief Raylib drawing, status display and mouse input.
+ * @brief Implements Raylib rendering, status display, and mouse input.
  * @author Hao Guo
+ * @author Junke Pu
+ *
+ * @par Contribution breakdown
+ * - Hao Guo: GUI window initialization and lifetime; board, peg, and bridge
+ *   rendering.
+ * - Junke Pu: GUI interaction and move placement; game-state display; the
+ *   preset::PlayerGuiAccess implementation.
  */
 
 #include "bruecken/gui_renderer.h"
@@ -23,6 +30,7 @@
 namespace bruecken {
 namespace {
 
+// Visual palette used by Hao Guo's renderer and Junke Pu's status panel.
 constexpr Color kBackground{241, 245, 249, 255};
 constexpr Color kBoardBackground{255, 255, 255, 255};
 constexpr Color kGridColor{148, 163, 184, 130};
@@ -31,6 +39,11 @@ constexpr Color kSecondaryText{100, 116, 139, 255};
 constexpr Color kPointColor{100, 116, 139, 255};
 constexpr Color kWinningColor{250, 204, 21, 255};
 
+/**
+ * @brief Screen-space geometry of the possibly rotated board.
+ * @par Primary contributor
+ * Hao Guo (board rendering).
+ */
 struct BoardGeometry {
     Vector2 top_left;
     Vector2 top_right;
@@ -41,22 +54,34 @@ struct BoardGeometry {
     Vector2 center;
 };
 
+/** @brief Adds two screen-space vectors. */
 Vector2 add(Vector2 a, Vector2 b) {
     return {a.x + b.x, a.y + b.y};
 }
 
+/** @brief Subtracts one screen-space vector from another. */
 Vector2 subtract(Vector2 a, Vector2 b) {
     return {a.x - b.x, a.y - b.y};
 }
 
+/** @brief Scales a screen-space vector by a scalar factor. */
 Vector2 scale(Vector2 value, float factor) {
     return {value.x * factor, value.y * factor};
 }
 
+/** @brief Returns the Euclidean length of a screen-space vector. */
 float length(Vector2 value) {
     return std::sqrt(value.x * value.x + value.y * value.y);
 }
 
+/**
+ * @brief Converts a hexadecimal RGB string such as `#ff0015` to a color.
+ * @param text Color string to parse.
+ * @param fallback Color returned when parsing fails.
+ * @return The parsed opaque Raylib color, or @p fallback.
+ * @par Primary contributor
+ * Hao Guo (rendering configuration).
+ */
 Color parse_color(const std::string& text, Color fallback) {
     std::string digits = text;
 
@@ -88,8 +113,14 @@ Color parse_color(const std::string& text, Color fallback) {
 }
 
 /**
- * Calculates the rotated board geometry using the formula from
- * SPIELREGELN.md.
+ * @brief Calculates the rotated board geometry.
+ * @param board Board whose dimensions and rotation define the geometry.
+ * @return Corner points, grid steps, and center in screen coordinates.
+ *
+ * The transformation follows the formula specified in SPIELREGELN.md.
+ *
+ * @par Primary contributor
+ * Hao Guo (board rendering).
  */
 BoardGeometry make_geometry(const Board& board) {
     constexpr float kPi = 3.14159265358979323846F;
@@ -155,6 +186,11 @@ BoardGeometry make_geometry(const Board& board) {
     return result;
 }
 
+/**
+ * @brief Maps an integer board coordinate to a screen-space point.
+ * @par Primary contributor
+ * Hao Guo (board rendering).
+ */
 Vector2 board_to_screen(
     const BoardGeometry& geometry,
     int x,
@@ -168,10 +204,14 @@ Vector2 board_to_screen(
 }
 
 /**
- * Finds the grid point nearest to the mouse.
+ * @brief Finds the grid point nearest to the mouse cursor.
+ * @return The clicked board position, or std::nullopt when no point is close.
  *
  * This is simpler than calculating an inverse transformation and still
  * works with rotated boards.
+ *
+ * @par Primary contributor
+ * Junke Pu (mouse interaction and move placement).
  */
 std::optional<Position> find_clicked_position(
     const BoardGeometry& geometry,
@@ -206,11 +246,17 @@ std::optional<Position> find_clicked_position(
     return result;
 }
 
+/**
+ * @brief Checks whether a coordinate is one of the four unplayable corners.
+ * @par Primary contributor
+ * Hao Guo (board rendering).
+ */
 bool is_corner(const Board& board, int x, int y) {
     return (x == 0 || x == board.get_width() - 1) &&
            (y == 0 || y == board.get_height() - 1);
 }
 
+/** @brief Draws text centered around the supplied screen position. */
 void draw_centered_text(
     const std::string& text,
     Vector2 center,
@@ -227,6 +273,7 @@ void draw_centered_text(
         color);
 }
 
+/** @brief Places a coordinate label outside the board, away from its center. */
 Vector2 label_position(
     Vector2 point,
     Vector2 center,
@@ -242,12 +289,23 @@ Vector2 label_position(
     return add(point, direction);
 }
 
+/** @brief Selects a readable interval between coordinate labels. */
 int label_stride(float step) {
     return std::max(
         1,
         static_cast<int>(std::ceil(24.0F / step)));
 }
 
+/**
+ * @brief Reconstructs a winning path for the selected player.
+ * @return Board positions in path order, or an empty vector if none exists.
+ *
+ * A breadth-first search traverses the player's bridge graph from the first
+ * required edge to the opposite edge.
+ *
+ * @par Primary contributor
+ * Junke Pu (game-state visualization).
+ */
 std::vector<Position> find_winning_path(
     const Board& board,
     int player_id) {
@@ -353,6 +411,11 @@ std::vector<Position> find_winning_path(
     return path;
 }
 
+/**
+ * @brief Draws the current player, round, result, and interaction feedback.
+ * @par Primary contributor
+ * Junke Pu (game-state display).
+ */
 void draw_status(
     const Board& board,
     const std::vector<std::string>& names,
@@ -428,14 +491,17 @@ GuiRenderer::GuiRenderer(
       player_colors_(std::move(player_colors)),
       player_names_(std::move(player_names)) {
 
+    // Hao Guo: normalize the colors consumed by the visual renderer.
     if (player_colors_.size() < kNumPlayers) {
         player_colors_ = kDefaultPlayerColors;
     }
 
+    // Junke Pu: normalize names consumed by the game-state panel.
     if (player_names_.size() < kNumPlayers) {
         player_names_ = kDefaultPlayerNames;
     }
 
+    // Hao Guo: configure and initialize the GUI window.
     SetConfigFlags(FLAG_WINDOW_RESIZABLE | FLAG_VSYNC_HINT);
     InitWindow(
         kDefaultWindowSize,
@@ -453,17 +519,21 @@ GuiRenderer::GuiRenderer(
 }
 
 GuiRenderer::~GuiRenderer() {
+    // Hao Guo: release the Raylib window owned by this renderer.
     if (window_open_ && IsWindowReady()) {
         CloseWindow();
     }
 }
 
 bool GuiRenderer::should_close() const {
+    // Hao Guo: expose the window-lifetime state to the main game loop.
     return !window_open_ || WindowShouldClose();
 }
 
 std::optional<preset::Move>
 GuiRenderer::request_move_from_current_human_player() {
+    // Junke Pu: implement the school's PlayerGuiAccess hand-off. Copying the
+    // optional and then clearing it ensures that each click is consumed once.
     auto result = pending_move_;
     pending_move_.reset();
     return result;
@@ -474,6 +544,7 @@ void GuiRenderer::draw_frame() {
         return;
     }
 
+    // Hao Guo: derive all geometry and drawing sizes for this frame.
     const BoardGeometry geometry = make_geometry(board_);
 
     const Color colors[kNumPlayers] = {
@@ -491,12 +562,15 @@ void GuiRenderer::draw_frame() {
     const float bridge_width =
         std::clamp(step * 0.18F, 1.5F, 5.0F);
 
-    // Remove clicks left over from the previous turn.
+    // Junke Pu: discard interaction state left over from the previous turn.
     if (input_turn_ != board_.get_turn()) {
         pending_move_.reset();
         input_turn_ = board_.get_turn();
     }
 
+    // Junke Pu: translate a click into a valid game move and queue it for
+    // request_move_from_current_human_player(). This is the piece-placement
+    // interaction; Board applies the move later through HumanPlayer.
     if (IsMouseButtonPressed(MOUSE_BUTTON_LEFT) &&
         board_.get_phase() != GamePhase::kFinished &&
         board_.get_phase() != GamePhase::kDraw) {
@@ -525,16 +599,18 @@ void GuiRenderer::draw_frame() {
         }
     }
 
+    // Hao Guo: begin the visual rendering pass.
     BeginDrawing();
     ClearBackground(kBackground);
 
+    // Junke Pu: display the current turn, game result, and click feedback.
     draw_status(
         board_,
         player_names_,
         colors,
         feedback_);
 
-    // Board background.
+    // Hao Guo: render the board background.
     DrawTriangle(
         geometry.top_left,
         geometry.top_right,
@@ -547,7 +623,7 @@ void GuiRenderer::draw_frame() {
         geometry.bottom_left,
         kBoardBackground);
 
-    // Grid.
+    // Hao Guo: render the board grid.
     for (int x = 0; x < board_.get_width(); ++x) {
         DrawLineEx(
             board_to_screen(geometry, x, 0),
@@ -570,7 +646,8 @@ void GuiRenderer::draw_frame() {
             kGridColor);
     }
 
-    // Player 1: top/bottom. Player 2: left/right.
+    // Hao Guo: render the goal edges. Player 1 owns top/bottom; player 2
+    // owns left/right.
     DrawLineEx(
         geometry.top_left,
         geometry.top_right,
@@ -595,7 +672,7 @@ void GuiRenderer::draw_frame() {
         6.0F,
         colors[1]);
 
-    // Board points.
+    // Hao Guo: render playable board points and mark unplayable corners.
     const float point_radius =
         std::clamp(step * 0.065F, 0.9F, 2.2F);
 
@@ -627,7 +704,7 @@ void GuiRenderer::draw_frame() {
         }
     }
 
-    // Normal bridges.
+    // Hao Guo: render normal bridges below the pegs.
     for (const Bridge& bridge : board_.get_bridges()) {
         const int player =
             std::clamp(bridge.player_id, 0, kNumPlayers - 1);
@@ -645,7 +722,8 @@ void GuiRenderer::draw_frame() {
             colors[player]);
     }
 
-    // Winning path.
+    // Junke Pu: visualize the final game state by highlighting the winner's
+    // connected bridge path.
     if (board_.get_phase() == GamePhase::kFinished) {
         const int winner = board_.check_win(0) ? 0 : 1;
         const auto path = find_winning_path(board_, winner);
@@ -665,7 +743,7 @@ void GuiRenderer::draw_frame() {
         }
     }
 
-    // Pegs.
+    // Hao Guo: render the players' pegs above the bridges.
     for (const Peg& peg : board_.get_pegs()) {
         const int player =
             std::clamp(peg.player_id, 0, kNumPlayers - 1);
@@ -687,7 +765,7 @@ void GuiRenderer::draw_frame() {
             colors[player]);
     }
 
-    // Coordinates.
+    // Hao Guo: render readable board-coordinate labels.
     const int x_stride = label_stride(length(geometry.x_step));
     const int y_stride = label_stride(length(geometry.y_step));
 
@@ -716,6 +794,7 @@ void GuiRenderer::draw_frame() {
             kSecondaryText);
     }
 
+    // Hao Guo: present the completed frame.
     EndDrawing();
 }
 
