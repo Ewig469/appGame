@@ -17,13 +17,13 @@
 #include <cmath>
 #include <exception>
 #include <optional>
-#include <queue>
 #include <stdexcept>
 #include <string>
 #include <utility>
 #include <vector>
 
 #include "bruecken/common.h"
+#include "bruecken/gui_logic.h"
 #include "move.h"
 #include "raylib.h"
 
@@ -39,34 +39,11 @@ constexpr Color kSecondaryText{100, 116, 139, 255};
 constexpr Color kPointColor{100, 116, 139, 255};
 constexpr Color kWinningColor{250, 204, 21, 255};
 
-/**
- * @brief Screen-space geometry of the possibly rotated board.
- * @par Primary contributor
- * Hao Guo (board rendering).
- */
-struct BoardGeometry {
-    Vector2 top_left;
-    Vector2 top_right;
-    Vector2 bottom_left;
-    Vector2 bottom_right;
-    Vector2 x_step;
-    Vector2 y_step;
-    Vector2 center;
-};
+using BoardGeometry = GuiBoardGeometry;
 
-/** @brief Adds two screen-space vectors. */
-Vector2 add(Vector2 a, Vector2 b) {
-    return {a.x + b.x, a.y + b.y};
-}
-
-/** @brief Subtracts one screen-space vector from another. */
-Vector2 subtract(Vector2 a, Vector2 b) {
-    return {a.x - b.x, a.y - b.y};
-}
-
-/** @brief Scales a screen-space vector by a scalar factor. */
-Vector2 scale(Vector2 value, float factor) {
-    return {value.x * factor, value.y * factor};
+/** Convert renderer-independent GUI coordinates to a Raylib vector. */
+Vector2 to_vector(GuiPoint point) {
+    return {point.x, point.y};
 }
 
 /** @brief Returns the Euclidean length of a screen-space vector. */
@@ -123,67 +100,10 @@ Color parse_color(const std::string& text, Color fallback) {
  * Hao Guo (board rendering).
  */
 BoardGeometry make_geometry(const Board& board) {
-    constexpr float kPi = 3.14159265358979323846F;
-
-    const float screen_width = static_cast<float>(GetScreenWidth());
-    const float screen_height = static_cast<float>(GetScreenHeight());
-
-    const float left = std::max(54.0F, screen_width * 0.075F);
-    const float right = screen_width - left;
-    const float top = std::max(116.0F, screen_height * 0.16F);
-    const float bottom =
-        screen_height - std::max(52.0F, screen_height * 0.07F);
-
-    const float radians =
-        static_cast<float>(board.get_rotation()) * kPi / 180.0F;
-
-    const float formula_angle = radians - kPi / 4.0F;
-
-    const float fraction = std::clamp(
-        std::tan(formula_angle) * 0.5F + 0.5F,
-        0.0F,
-        1.0F);
-
-    const float width = right - left;
-    const float height = bottom - top;
-
-    BoardGeometry result{};
-
-    result.top_left = {
-        left + fraction * width,
-        top
-    };
-
-    result.top_right = {
-        right,
-        top + fraction * height
-    };
-
-    result.bottom_right = {
-        right - fraction * width,
-        bottom
-    };
-
-    result.bottom_left = {
-        left,
-        bottom - fraction * height
-    };
-
-    result.x_step = scale(
-        subtract(result.top_right, result.top_left),
-        1.0F / static_cast<float>(board.get_width() - 1));
-
-    result.y_step = scale(
-        subtract(result.bottom_left, result.top_left),
-        1.0F / static_cast<float>(board.get_height() - 1));
-
-    result.center = scale(
-        add(
-            add(result.top_left, result.top_right),
-            add(result.bottom_left, result.bottom_right)),
-        0.25F);
-
-    return result;
+    return calculate_board_geometry(
+        board,
+        static_cast<float>(GetScreenWidth()),
+        static_cast<float>(GetScreenHeight()));
 }
 
 /**
@@ -196,11 +116,7 @@ Vector2 board_to_screen(
     int x,
     int y) {
 
-    return add(
-        geometry.top_left,
-        add(
-            scale(geometry.x_step, static_cast<float>(x)),
-            scale(geometry.y_step, static_cast<float>(y))));
+    return to_vector(board_coordinate_to_screen(geometry, x, y));
 }
 
 /**
@@ -218,32 +134,10 @@ std::optional<Position> find_clicked_position(
     const Board& board) {
 
     const Vector2 mouse = GetMousePosition();
-
-    const float step = std::min(
-        length(geometry.x_step),
-        length(geometry.y_step));
-
-    const float radius = std::clamp(step * 0.48F, 5.0F, 14.0F);
-    float best_distance = radius * radius;
-
-    std::optional<Position> result;
-
-    for (int y = 0; y < board.get_height(); ++y) {
-        for (int x = 0; x < board.get_width(); ++x) {
-            const Vector2 point = board_to_screen(geometry, x, y);
-
-            const float dx = mouse.x - point.x;
-            const float dy = mouse.y - point.y;
-            const float distance = dx * dx + dy * dy;
-
-            if (distance < best_distance) {
-                best_distance = distance;
-                result = Position{x, y};
-            }
-        }
-    }
-
-    return result;
+    return find_nearest_board_position(
+        geometry,
+        board,
+        GuiPoint{mouse.x, mouse.y});
 }
 
 /**
@@ -279,136 +173,18 @@ Vector2 label_position(
     Vector2 center,
     float distance) {
 
-    Vector2 direction = subtract(point, center);
+    Vector2 direction{
+        point.x - center.x,
+        point.y - center.y};
     const float direction_length = length(direction);
 
     if (direction_length > 0.001F) {
-        direction = scale(direction, distance / direction_length);
+        const float factor = distance / direction_length;
+        direction.x *= factor;
+        direction.y *= factor;
     }
 
-    return add(point, direction);
-}
-
-/** @brief Selects a readable interval between coordinate labels. */
-int label_stride(float step) {
-    return std::max(
-        1,
-        static_cast<int>(std::ceil(24.0F / step)));
-}
-
-/**
- * @brief Reconstructs a winning path for the selected player.
- * @return Board positions in path order, or an empty vector if none exists.
- *
- * A breadth-first search traverses the player's bridge graph from the first
- * required edge to the opposite edge.
- *
- * @par Primary contributor
- * Junke Pu (game-state visualization).
- */
-std::vector<Position> find_winning_path(
-    const Board& board,
-    int player_id) {
-
-    std::vector<Peg> pegs;
-
-    for (const Peg& peg : board.get_pegs()) {
-        if (peg.player_id == player_id) {
-            pegs.push_back(peg);
-        }
-    }
-
-    if (pegs.empty()) {
-        return {};
-    }
-
-    std::vector<std::vector<int>> neighbours(pegs.size());
-
-    auto find_peg = [&](const Position& position) {
-        for (int i = 0; i < static_cast<int>(pegs.size()); ++i) {
-            if (pegs[i].pos == position) {
-                return i;
-            }
-        }
-        return -1;
-    };
-
-    for (const Bridge& bridge : board.get_bridges()) {
-        if (bridge.player_id != player_id) {
-            continue;
-        }
-
-        const int from = find_peg(bridge.from);
-        const int to = find_peg(bridge.to);
-
-        if (from >= 0 && to >= 0) {
-            neighbours[from].push_back(to);
-            neighbours[to].push_back(from);
-        }
-    }
-
-    std::queue<int> queue;
-    std::vector<int> parent(pegs.size(), -1);
-    std::vector<bool> visited(pegs.size(), false);
-
-    for (int i = 0; i < static_cast<int>(pegs.size()); ++i) {
-        const Direction direction =
-            board.get_direction(pegs[i].pos);
-
-        const bool start =
-            player_id == 0
-                ? direction == Direction::kTop
-                : direction == Direction::kLeft;
-
-        if (start) {
-            queue.push(i);
-            visited[i] = true;
-        }
-    }
-
-    int goal = -1;
-
-    while (!queue.empty()) {
-        const int current = queue.front();
-        queue.pop();
-
-        const Direction direction =
-            board.get_direction(pegs[current].pos);
-
-        const bool reached_goal =
-            player_id == 0
-                ? direction == Direction::kBottom
-                : direction == Direction::kRight;
-
-        if (reached_goal) {
-            goal = current;
-            break;
-        }
-
-        for (const int next : neighbours[current]) {
-            if (!visited[next]) {
-                visited[next] = true;
-                parent[next] = current;
-                queue.push(next);
-            }
-        }
-    }
-
-    if (goal < 0) {
-        return {};
-    }
-
-    std::vector<Position> path;
-
-    for (int current = goal;
-         current >= 0;
-         current = parent[current]) {
-
-        path.push_back(pegs[current].pos);
-    }
-
-    std::reverse(path.begin(), path.end());
-    return path;
+    return {point.x + direction.x, point.y + direction.y};
 }
 
 /**
@@ -423,16 +199,10 @@ void draw_status(
     const std::string& feedback) {
 
     int displayed_player = board.get_current_player();
-    std::string status;
-
     if (board.get_phase() == GamePhase::kFinished) {
         displayed_player = board.check_win(0) ? 0 : 1;
-        status = names[displayed_player] + " gewinnt!";
-    } else if (board.get_phase() == GamePhase::kDraw) {
-        status = "Unentschieden";
-    } else {
-        status = names[displayed_player] + " ist am Zug";
     }
+    const std::string status = game_status_text(board, names);
 
     DrawRectangleRounded(
         Rectangle{
@@ -547,14 +317,19 @@ void GuiRenderer::draw_frame() {
     // Hao Guo: derive all geometry and drawing sizes for this frame.
     const BoardGeometry geometry = make_geometry(board_);
 
+    // Junke Pu: resolve the exact coordinate currently under the mouse. This
+    // keeps every coordinate discoverable even on the largest supported board.
+    const auto hovered_position =
+        find_clicked_position(geometry, board_);
+
     const Color colors[kNumPlayers] = {
         parse_color(player_colors_[0], RED),
         parse_color(player_colors_[1], BLUE)
     };
 
     const float step = std::min(
-        length(geometry.x_step),
-        length(geometry.y_step));
+        length(to_vector(geometry.x_step)),
+        length(to_vector(geometry.y_step)));
 
     const float peg_radius =
         std::clamp(step * 0.29F, 2.2F, 9.5F);
@@ -575,19 +350,16 @@ void GuiRenderer::draw_frame() {
         board_.get_phase() != GamePhase::kFinished &&
         board_.get_phase() != GamePhase::kDraw) {
 
-        const auto position =
-            find_clicked_position(geometry, board_);
+        const auto& position = hovered_position;
 
         if (!position.has_value()) {
             feedback_ = "Bitte einen Rasterpunkt anklicken.";
         } else {
-            preset::Move move(
-                position->x,
-                position->y,
-                board_.get_current_player() + 1);
+            const auto move =
+                move_for_board_position(board_, *position);
 
-            if (board_.is_valid_move(move)) {
-                pending_move_ = move;
+            if (move.has_value()) {
+                pending_move_ = *move;
 
                 feedback_ =
                     "Ausgewählt: (" +
@@ -612,15 +384,15 @@ void GuiRenderer::draw_frame() {
 
     // Hao Guo: render the board background.
     DrawTriangle(
-        geometry.top_left,
-        geometry.top_right,
-        geometry.bottom_right,
+        to_vector(geometry.top_left),
+        to_vector(geometry.top_right),
+        to_vector(geometry.bottom_right),
         kBoardBackground);
 
     DrawTriangle(
-        geometry.top_left,
-        geometry.bottom_right,
-        geometry.bottom_left,
+        to_vector(geometry.top_left),
+        to_vector(geometry.bottom_right),
+        to_vector(geometry.bottom_left),
         kBoardBackground);
 
     // Hao Guo: render the board grid.
@@ -649,26 +421,26 @@ void GuiRenderer::draw_frame() {
     // Hao Guo: render the goal edges. Player 1 owns top/bottom; player 2
     // owns left/right.
     DrawLineEx(
-        geometry.top_left,
-        geometry.top_right,
+        to_vector(geometry.top_left),
+        to_vector(geometry.top_right),
         6.0F,
         colors[0]);
 
     DrawLineEx(
-        geometry.bottom_left,
-        geometry.bottom_right,
+        to_vector(geometry.bottom_left),
+        to_vector(geometry.bottom_right),
         6.0F,
         colors[0]);
 
     DrawLineEx(
-        geometry.top_left,
-        geometry.bottom_left,
+        to_vector(geometry.top_left),
+        to_vector(geometry.bottom_left),
         6.0F,
         colors[1]);
 
     DrawLineEx(
-        geometry.top_right,
-        geometry.bottom_right,
+        to_vector(geometry.top_right),
+        to_vector(geometry.bottom_right),
         6.0F,
         colors[1]);
 
@@ -726,7 +498,7 @@ void GuiRenderer::draw_frame() {
     // connected bridge path.
     if (board_.get_phase() == GamePhase::kFinished) {
         const int winner = board_.check_win(0) ? 0 : 1;
-        const auto path = find_winning_path(board_, winner);
+        const auto path = calculate_winning_path(board_, winner);
 
         for (std::size_t i = 1; i < path.size(); ++i) {
             DrawLineEx(
@@ -766,32 +538,84 @@ void GuiRenderer::draw_frame() {
     }
 
     // Hao Guo: render readable board-coordinate labels.
-    const int x_stride = label_stride(length(geometry.x_step));
-    const int y_stride = label_stride(length(geometry.y_step));
+    const auto x_labels = coordinate_label_values(
+        board_.get_width(),
+        length(to_vector(geometry.x_step)));
+    const auto y_labels = coordinate_label_values(
+        board_.get_height(),
+        length(to_vector(geometry.y_step)));
 
-    for (int x = 0; x < board_.get_width(); x += x_stride) {
+    for (const int x : x_labels) {
         draw_centered_text(
             std::to_string(x),
             label_position(
                 board_to_screen(geometry, x, 0),
-                geometry.center,
+                to_vector(geometry.center),
                 17.0F),
             13,
             kSecondaryText);
     }
 
-    for (int y = y_stride;
-         y < board_.get_height();
-         y += y_stride) {
+    for (const int y : y_labels) {
+        if (y == 0) continue;
 
         draw_centered_text(
             std::to_string(y),
             label_position(
                 board_to_screen(geometry, 0, y),
-                geometry.center,
+                to_vector(geometry.center),
                 17.0F),
             13,
             kSecondaryText);
+    }
+
+    // Hao Guo and Junke Pu: render a readable coordinate tooltip for every
+    // grid point. Persistent labels provide orientation; this tooltip provides
+    // the exact non-skipped coordinate on boards up to 96 x 96.
+    if (hovered_position.has_value()) {
+        const Vector2 point = board_to_screen(
+            geometry,
+            hovered_position->x,
+            hovered_position->y);
+
+        DrawCircleLines(
+            static_cast<int>(point.x),
+            static_cast<int>(point.y),
+            std::max(6.0F, step * 0.42F),
+            kWinningColor);
+
+        const std::string coordinate =
+            "X: " + std::to_string(hovered_position->x) +
+            "  Y: " + std::to_string(hovered_position->y);
+        constexpr int kTooltipFontSize = 16;
+        const int tooltip_width =
+            MeasureText(coordinate.c_str(), kTooltipFontSize) + 18;
+        constexpr int kTooltipHeight = 28;
+        const Vector2 mouse = GetMousePosition();
+        const float tooltip_x = std::clamp(
+            mouse.x + 14.0F,
+            8.0F,
+            static_cast<float>(GetScreenWidth() - tooltip_width - 8));
+        const float tooltip_y = std::clamp(
+            mouse.y + 14.0F,
+            8.0F,
+            static_cast<float>(GetScreenHeight() - kTooltipHeight - 8));
+
+        DrawRectangleRounded(
+            Rectangle{
+                tooltip_x,
+                tooltip_y,
+                static_cast<float>(tooltip_width),
+                static_cast<float>(kTooltipHeight)},
+            0.25F,
+            6,
+            kTextColor);
+        DrawText(
+            coordinate.c_str(),
+            static_cast<int>(tooltip_x) + 9,
+            static_cast<int>(tooltip_y) + 6,
+            kTooltipFontSize,
+            kBoardBackground);
     }
 
     // Hao Guo: present the completed frame.

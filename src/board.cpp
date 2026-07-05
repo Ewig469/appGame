@@ -78,6 +78,7 @@ Direction Board::get_direction(const Position& pos) const {
 }
 
 bool Board::is_playable(const Position& pos, int player_id) const {
+    if (player_id < 0 || player_id >= kNumPlayers) return false;
     if (!is_in_bounds(pos)) return false;
 
     // Ecken duerfen von niemandem bespielt werden
@@ -107,7 +108,16 @@ bool Board::is_occupied(const Position& pos) const {
 // =====================================================================
 
 bool Board::is_valid_move(preset::Move move) const {
-    int pid = move.get_id() - 1;  // preset::Move IDs sind 1-basiert
+    // Preset move IDs are one-based and must identify the player whose
+    // turn is currently represented by this board.
+    if (move.get_id() < 1 || move.get_id() > kNumPlayers) return false;
+    if (phase_ == GamePhase::kFinished || phase_ == GamePhase::kDraw) {
+        return false;
+    }
+
+    int pid = move.get_id() - 1;
+    if (pid != get_current_player()) return false;
+
     Position pos{move.get_x(), move.get_y()};
 
     if (!is_in_bounds(pos)) return false;
@@ -149,16 +159,19 @@ void Board::apply_move(preset::Move move) {
     // Bruecken generieren
     generate_bridges(peg);
 
+    // Advance the turn before draw detection so the board can determine
+    // whether the next player is able to make the required move.
+    turn_++;
+
     // Spielende pruefen
     if (check_win(pid)) {
         phase_ = GamePhase::kFinished;
-        preset::Logger::info("Spieler " + std::to_string(pid) + " hat gewonnen!");
+        preset::Logger::info(
+            "Player " + std::to_string(pid + 1) + " has won!");
     } else if (check_draw()) {
         phase_ = GamePhase::kDraw;
-        preset::Logger::info("Unentschieden!");
+        preset::Logger::info("The game ended in a draw!");
     }
-
-    turn_++;
 }
 
 // =====================================================================
@@ -328,24 +341,27 @@ bool Board::is_connected_across(int player_id) const {
 }
 
 bool Board::check_win(int player_id) const {
+    if (player_id < 0 || player_id >= kNumPlayers) {
+        throw std::invalid_argument("player_id must be 0 or 1");
+    }
     return is_connected_across(player_id);
 }
 
 bool Board::check_draw() const {
-    // Extrem selten. Einfache Heuristik: Brett voll und niemand gewinnt
-    int total_playable = 0;
+    if (check_win(0) || check_win(1)) return false;
+
+    // A turn cannot be completed if the current player has no unoccupied
+    // position in either the shared area or its own border area.
+    const int current_player = get_current_player();
     for (int y = 0; y < height_; y++) {
         for (int x = 0; x < width_; x++) {
             Position pos{x, y};
-            if (!is_corner(pos)) {
-                total_playable++;
+            if (is_playable(pos, current_player) && !is_occupied(pos)) {
+                return false;
             }
         }
     }
-    if (static_cast<int>(pegs_.size()) >= total_playable) {
-        return !check_win(0) && !check_win(1);
-    }
-    return false;
+    return true;
 }
 
 }  // namespace bruecken

@@ -71,8 +71,14 @@ public:
      * @brief Requests the next move from the GUI.
      *
      * The move is validated on the private board before it is returned.
+     * The function may be polled while no GUI move is available. After a
+     * move is accepted, another request is forbidden until the opponent has
+     * moved.
      *
      * @return A valid move or std::nullopt if no move is available.
+     * @throws std::logic_error If it is not this player's turn or the game
+     *         has already ended.
+     * @throws std::runtime_error If the GUI supplies an invalid move.
      */
     std::optional<preset::Move> request() override;
 
@@ -80,6 +86,10 @@ public:
      * @brief Updates the private board with the opponent's move.
      *
      * @param opponent_move Move performed by the opponent.
+     * @throws std::logic_error If called during this player's turn or after
+     *         the game has ended.
+     * @throws std::invalid_argument If the move has an invalid identity,
+     *         position, or rule violation.
      */
     void update(
         preset::Move opponent_move) override;

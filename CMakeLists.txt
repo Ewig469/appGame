@@ -15,33 +15,18 @@ project(${PROJECT_NAME}
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
 # -------------------------------------------------------------------
-# Preset library (bundled)
+# Preset library bundled
 # -------------------------------------------------------------------
 add_subdirectory(lib/preset)
 
 # -------------------------------------------------------------------
-# Raylib 6.0
+# Raylib 6.0 bundled library
 # -------------------------------------------------------------------
-include(FetchContent)
+set(BUILD_EXAMPLES OFF CACHE BOOL "" FORCE)
+set(BUILD_GAMES OFF CACHE BOOL "" FORCE)
+set(BUILD_SHARED_LIBS OFF CACHE BOOL "" FORCE)
 
-set(RAYLIB_VERSION 6.0)
-
-find_package(raylib ${RAYLIB_VERSION} QUIET)
-
-if(NOT raylib_FOUND)
-    message(STATUS "raylib ${RAYLIB_VERSION} nicht gefunden, lade raylib automatisch herunter")
-
-    set(BUILD_EXAMPLES OFF CACHE BOOL "" FORCE)
-    set(BUILD_GAMES OFF CACHE BOOL "" FORCE)
-
-    FetchContent_Declare(
-        raylib
-        URL https://github.com/raysan5/raylib/archive/refs/tags/${RAYLIB_VERSION}.tar.gz
-        DOWNLOAD_EXTRACT_TIMESTAMP OFF
-    )
-
-    FetchContent_MakeAvailable(raylib)
-endif()
+add_subdirectory(lib/raylib/raylib-6.0)
 
 # -------------------------------------------------------------------
 # Project executable
@@ -89,6 +74,7 @@ target_link_libraries(${PROJECT_NAME}
 add_executable(test_player
     tests/test_player.cpp
     src/board.cpp
+    src/human_player.cpp
     src/random_ai_player.cpp
 )
 
@@ -120,3 +106,33 @@ target_link_libraries(test_invalid_move
     PRIVATE
         preset
 )
+
+add_executable(test_gui_logic
+    tests/test_gui_logic.cpp
+    src/board.cpp
+    src/gui_logic.cpp
+)
+
+target_include_directories(test_gui_logic
+    PRIVATE
+        include
+)
+
+target_link_libraries(test_gui_logic
+    PRIVATE
+        preset
+)
+
+# Keep MinGW executables independent of whichever GCC runtime DLLs are found
+# first on Windows. This does not affect Linux/CIP builds.
+if(MINGW)
+    target_link_options(${PROJECT_NAME} PRIVATE -static)
+    target_link_options(test_player PRIVATE -static)
+    target_link_options(test_invalid_move PRIVATE -static)
+    target_link_options(test_gui_logic PRIVATE -static)
+endif()
+
+enable_testing()
+add_test(NAME player_contract COMMAND test_player)
+add_test(NAME invalid_move_contract COMMAND test_invalid_move)
+add_test(NAME gui_logic_contract COMMAND test_gui_logic)

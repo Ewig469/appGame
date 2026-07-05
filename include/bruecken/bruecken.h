@@ -8,4 +8,5 @@
 
 #include "common.h"
 #include "board.h"
+#include "gui_logic.h"
 #include "gui_renderer.h"

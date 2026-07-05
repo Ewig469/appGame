@@ -74,6 +74,8 @@ public:
      * chosen uniformly at random.
      *
      * @return Selected move or std::nullopt if no legal move exists.
+     * @throws std::logic_error If it is not this player's turn or the game
+     *         has already ended.
      */
     std::optional<preset::Move> request() override;
 
@@ -83,6 +85,10 @@ public:
      * @brief Updates the private board with the opponent's move.
      *
      * @param opponent_move Move performed by the opponent.
+     * @throws std::logic_error If called during this player's turn or after
+     *         the game has ended.
+     * @throws std::invalid_argument If the move has an invalid identity,
+     *         position, or rule violation.
      */
     void update(
         preset::Move opponent_move) override;

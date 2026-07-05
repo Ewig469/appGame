@@ -97,6 +97,8 @@ namespace bruecken
      *
      * @return A randomly selected legal move or std::nullopt
      *         if no legal moves are available.
+     * @throws std::logic_error If called outside this player's turn or after
+     *         the game has ended.
      */
     std::optional<preset::Move> RandomAIPlayer::request()
     {
@@ -104,6 +106,20 @@ namespace bruecken
         {
             throw std::runtime_error(
                 "RandomAIPlayer not initialized");
+        }
+
+        if (board_->get_phase() == GamePhase::kFinished ||
+            board_->get_phase() == GamePhase::kDraw)
+        {
+            throw std::logic_error(
+                "RandomAIPlayer cannot request a move after the game has ended");
+        }
+
+        const int own_index = player_id_ - 1;
+        if (board_->get_current_player() != own_index)
+        {
+            throw std::logic_error(
+                "RandomAIPlayer request called outside its turn");
         }
 
         std::vector<preset::Move> legal_moves;
@@ -138,6 +154,12 @@ namespace bruecken
 
         board_->apply_move(move);
 
+        if (board_->get_current_player() == own_index)
+        {
+            throw std::logic_error(
+                "RandomAIPlayer board did not advance after its move");
+        }
+
         return move;
     }
 
@@ -150,7 +172,9 @@ namespace bruecken
      * @param opponent_move The move performed by the opponent.
      *
      * @throws std::runtime_error If the player has not been initialized.
-     * @throws std::runtime_error If the opponent move is invalid.
+     * @throws std::logic_error If called during this player's turn or after
+     *         the game has ended.
+     * @throws std::invalid_argument If the opponent move is invalid.
      */
     void RandomAIPlayer::update(
         preset::Move opponent_move)
@@ -161,13 +185,42 @@ namespace bruecken
                 "RandomAIPlayer not initialized");
         }
 
+        if (board_->get_phase() == GamePhase::kFinished ||
+            board_->get_phase() == GamePhase::kDraw)
+        {
+            throw std::logic_error(
+                "RandomAIPlayer cannot update after the game has ended");
+        }
+
+        const int own_index = player_id_ - 1;
+        if (board_->get_current_player() == own_index)
+        {
+            throw std::logic_error(
+                "RandomAIPlayer update called during its own turn");
+        }
+
+        const int expected_opponent_id =
+            board_->get_current_player() + 1;
+        if (opponent_move.get_id() != expected_opponent_id ||
+            opponent_move.get_id() == player_id_)
+        {
+            throw std::invalid_argument(
+                "Opponent move has the wrong player ID");
+        }
+
         if (!board_->is_valid_move(opponent_move))
         {
-            throw std::runtime_error(
+            throw std::invalid_argument(
                 "Opponent move is invalid");
         }
 
         board_->apply_move(opponent_move);
+
+        if (board_->get_current_player() != own_index)
+        {
+            throw std::logic_error(
+                "RandomAIPlayer board did not advance after opponent move");
+        }
     }
 
 }

@@ -102,7 +102,7 @@ public:
     /** Prueft, ob Spieler `player_id` seine beiden Seiten verbunden hat. */
     bool check_win(int player_id) const;
 
-    /** Prueft, ob ein Unentschieden vorliegt (beide blockiert). */
+    /** Return whether the current player has no legal position left. */
     bool check_draw() const;
 
 private:
