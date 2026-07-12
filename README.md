@@ -1,71 +1,71 @@
 # Knight Bridge
 
-Knight Bridge ist ein strategisches Brettspiel für zwei Personen und das
-Abschlussprojekt für das Programmierpraktikum (B.Inf.1802) im Sommersemester
-2026. Ziel ist es, die beiden eigenen gegenüberliegenden Seiten durch eine
-durchgehende Folge von Brücken zu verbinden.
+Knight Bridge is a two-player strategic board game and the final project for
+the Programming Lab course (B.Inf.1802) in the 2026 summer semester. The goal
+is to connect the two opposite sides assigned to your player with a continuous
+chain of bridges.
 
 ## Team
 
-| Name | Rolle und Hauptverantwortung |
+| Name | Role and main responsibility |
 |------|------------------------------|
-| Hao Guo | Projektleiter; GUI-Fenster, Brett-, Stein- und Brückenrendering sowie Hauptprogramm |
-| Zhibo Zhang | Spielfeldmodell und grundlegende Spiellogik |
-| Zhixin Fu | Human Player, Random AI Player und Player-Zustandslogik |
-| Junke Pu | GUI-Interaktion, Spielstatus und `PlayerGuiAccess`-Integration |
+| Hao Guo | Project lead; GUI window, board, peg and bridge rendering, and main program |
+| Zhibo Zhang | Board model and core game logic |
+| Zhixin Fu | Human Player, Random AI Player, and player state logic |
+| Junke Pu | GUI interaction, game status, and `PlayerGuiAccess` integration |
 
-## Voraussetzungen
+## Requirements
 
-- CMake 3.25 oder neuer
-- C++20-kompatibler Compiler, zum Beispiel GCC 13 oder Clang 18
-- Doxygen zur Erzeugung der Projektdokumentation
+- CMake 3.25 or newer
+- A C++20-compatible compiler, for example GCC 13 or Clang 18
+- Doxygen for generating the project documentation
 
-Preset 1.0.2 und Raylib 6.0 sind im Projekt enthalten und müssen nicht separat
-heruntergeladen werden.
+Preset 1.0.2 and Raylib 6.0 are included in this repository and do not need to
+be downloaded separately.
 
-## Kompilieren
+## Build
 
-Im Projektverzeichnis:
+From the project directory:
 
 ```bash
 cmake -S . -B build -DCMAKE_BUILD_TYPE=Release
 cmake --build build --parallel
 ```
 
-Das Programm befindet sich anschließend normalerweise unter
-`build/bruecken_spiel`. Bei Mehrkonfigurations-Generatoren, beispielsweise
-Visual Studio, kann es unter `build/Release/bruecken_spiel.exe` liegen.
+The executable is usually created as `build/knight_bridge`. With
+multi-configuration generators such as Visual Studio, it may be located at
+`build/Release/knight_bridge.exe`.
 
-Tests ausführen:
+Run the tests with:
 
 ```bash
 ctest --test-dir build --output-on-failure
 ```
 
-## Spiel starten
+## Start The Game
 
-Mensch gegen Mensch:
+Human vs. Human:
 
 ```bash
-./build/bruecken_spiel
+./build/knight_bridge
 ```
 
-Mensch gegen Random AI:
+Human vs. Random AI:
 
 ```bash
-./build/bruecken_spiel --playerTypes HUMAN RANDOM_AI
+./build/knight_bridge --playerTypes HUMAN RANDOM_AI
 ```
 
-Random AI gegen Random AI mit sichtbarer GUI und 500 ms Verzögerung:
+Random AI vs. Random AI with a visible GUI and a 500 ms delay:
 
 ```bash
-./build/bruecken_spiel --playerTypes RANDOM_AI RANDOM_AI --delay 500 --gui
+./build/knight_bridge --playerTypes RANDOM_AI RANDOM_AI --delay 500 --gui
 ```
 
-Ausführliches Beispiel mit allen implementierten Einstellungen:
+Full example with all implemented settings:
 
 ```bash
-./build/bruecken_spiel \
+./build/knight_bridge \
     --size 24 24 \
     --rotation 15 \
     --playerTypes HUMAN RANDOM_AI \
@@ -75,32 +75,34 @@ Ausführliches Beispiel mit allen implementierten Einstellungen:
     --loglevel INFO
 ```
 
-Implementiert sind ausschließlich die verpflichtenden Player-Typen `HUMAN`
-und `RANDOM_AI`. `SIMPLE_AI` und `ADVANCED_AI` sind nicht implementiert.
+Only the required player types `HUMAN` and `RANDOM_AI` are implemented.
+`SIMPLE_AI` and `ADVANCED_AI` are not implemented.
 
-## GUI verwenden
+## GUI Usage
 
-- Bei mindestens einem Human Player wird die GUI automatisch geöffnet.
-- Ein Spielstein wird mit der linken Maustaste auf einem gültigen Rasterpunkt
-  platziert.
-- Der obere Statusbereich zeigt den aktuellen Player, die Runde und das
-  Spielergebnis.
-- Seiten, Spielsteine und Brücken verwenden die übergebenen Player-Farben.
-- Der genaue X/Y-Wert jedes Rasterpunkts wird beim Darüberfahren mit der Maus
-  angezeigt; dies gilt auch für große Spielfelder bis 96 × 96.
-- Nach einem Sieg bleibt das Fenster geöffnet und die Gewinnstrecke wird
-  hervorgehoben, bis das Fenster geschlossen wird.
-- Bei einer reinen AI-Partie öffnet `--gui` die grafische Darstellung.
+- The GUI opens automatically when at least one player is a Human Player.
+- A peg is placed by left-clicking a valid grid point.
+- The status area at the top shows the current player, the round, and the game
+  result.
+- Player sides, pegs, and bridges use the configured player colors.
+- The coordinate system starts in the upper-left corner of the logical board.
+- For large boards, the GUI uses sparse coordinate labels so that the board
+  remains readable instead of covering the grid with overlapping numbers.
+- The exact X/Y coordinate of every grid point is shown when the mouse hovers
+  over that point. This also applies to large boards up to 96 x 96.
+- After a win, the window remains open and the winning path is highlighted until
+  the window is closed.
+- For AI-only games, the `--gui` option opens the graphical display.
 
-## Kommandozeilenhilfe
+## Command Line Help
 
-Aufruf:
+Command:
 
 ```bash
-./build/bruecken_spiel --help
+./build/knight_bridge --help
 ```
 
-Ausgabe:
+Output:
 
 ```text
 =========================================================================
@@ -132,12 +134,12 @@ Raylib: 6.0
     License: zlib
 ```
 
-## Dokumentation erzeugen
+## Generate Documentation
 
 ```bash
 doxygen Doxyfile
 ```
 
-Die HTML-Dokumentation wird unter `doc/html/index.html` erzeugt. Der Ordner
-`doc/` ist ein generiertes Artefakt und darf nicht in das GitLab-Repository
-committet werden.
+The generated HTML documentation is written to `doc/html/index.html`. The
+`doc/` directory is a generated artifact and must not be committed to the
+GitLab repository.

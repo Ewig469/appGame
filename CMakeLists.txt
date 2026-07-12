@@ -1,8 +1,8 @@
 cmake_minimum_required(VERSION 3.25)
 
-project(bruecken_spiel
+project(knight_bridge
     VERSION 0.1.0
-    DESCRIPTION "Bruecken - strategisches Brettspiel (APP SoSe 2026)"
+    DESCRIPTION "Knight Bridge - strategic board game (APP SoSe 2026)"
     LANGUAGES CXX
 )
 
