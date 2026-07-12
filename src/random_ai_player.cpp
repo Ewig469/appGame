@@ -9,7 +9,7 @@
  * board in order to validate moves and keep its internal
  * game state synchronized with the actual game.
  *
- * Author: Zhixin Fu
+ * @author Zhixin Fu
  */
 
 #include "bruecken/random_ai_player.h"
@@ -37,7 +37,6 @@ namespace bruecken
                     .count()));
     }
 
-
     /**
      * @brief Returns the player's name.
      *
@@ -48,13 +47,11 @@ namespace bruecken
         return name_;
     }
 
-
-
     /**
      * @brief Initializes the player.
      *
-     * Creates the player's private board and stores
-     * the assigned player ID.
+     * Creates the player's private board, stores the assigned player ID,
+     * and initializes the internal player state.
      *
      * @param board_config Board configuration.
      * @param player_id Player identifier (1 or 2).
@@ -72,6 +69,7 @@ namespace bruecken
                 "RandomAIPlayer already initialized");
         }
 
+        // Only player IDs 1 and 2 are valid.
         if (player_id != 1 && player_id != 2)
         {
             throw std::invalid_argument(
@@ -83,45 +81,67 @@ namespace bruecken
             board_config.height,
             board_config.rotation);
 
+        // Verify that the board was initialized correctly.
+        if (board_->get_width() != board_config.width ||
+            board_->get_height() != board_config.height)
+        {
+            throw std::runtime_error("Board initialization failed.");
+        }
+
         player_id_ = player_id;
 
+        // Initialize the internal player state.
         initialized_ = true;
+        my_turn_ = (player_id == 1);
+        game_finished_ = false;
+
+        // At the beginning of the game no move has been played yet.
+        expected_turn_ = 0;
     }
 
     /**
-     * @brief Selects a random valid move.
+     * @brief Generates the next move.
      *
-     * All legal moves are collected from the current board.
-     * One move is then selected uniformly at random and
-     * applied to the player's private board.
+     * Searches all legal moves on the private board,
+     * randomly selects one of them, applies it to the
+     * private board and returns it.
      *
-     * @return A randomly selected legal move or std::nullopt
-     *         if no legal moves are available.
-     * @throws std::logic_error If called outside this player's turn or after
-     *         the game has ended.
+     * If no legal move exists, std::nullopt is returned.
+     *
+     * @return A randomly selected legal move or std::nullopt.
+     *
+     * @throws std::logic_error
+     *         If the player has not been initialized,
+     *         the game has already finished,
+     *         or it is not this player's turn.
      */
     std::optional<preset::Move> RandomAIPlayer::request()
     {
+        // The player must be initialized before requesting moves.
         if (!initialized_)
         {
-            throw std::runtime_error(
-                "RandomAIPlayer not initialized");
+            throw std::logic_error("Player not initialized.");
         }
 
-        if (board_->get_phase() == GamePhase::kFinished ||
-            board_->get_phase() == GamePhase::kDraw)
+        // No further moves are allowed after the game has ended.
+        if (game_finished_)
         {
-            throw std::logic_error(
-                "RandomAIPlayer cannot request a move after the game has ended");
+            throw std::logic_error("Game already finished.");
         }
 
-        const int own_index = player_id_ - 1;
-        if (board_->get_current_player() != own_index)
+        // request() may only be called during this player's turn.
+        if (!my_turn_)
         {
-            throw std::logic_error(
-                "RandomAIPlayer request called outside its turn");
+            throw std::logic_error("It is not this player's turn.");
         }
 
+        // request() may only be called during this player's turn.
+        if (board_->get_turn() != expected_turn_)
+        {
+            throw std::logic_error("Board synchronization failed.");
+        }
+
+        // Collect every legal move on the current board.
         std::vector<preset::Move> legal_moves;
 
         for (int y = 0; y < board_->get_height(); ++y)
@@ -134,6 +154,7 @@ namespace bruecken
                     y,
                     player_id_);
 
+                // Only legal moves are considered.
                 if (board_->is_valid_move(move))
                 {
                     legal_moves.push_back(move);
@@ -141,86 +162,116 @@ namespace bruecken
             }
         }
 
+        // No legal move is available.
         if (legal_moves.empty())
         {
             return std::nullopt;
         }
 
+        // Select one legal move uniformly at random.
         std::uniform_int_distribution<std::size_t> dist(
             0,
             legal_moves.size() - 1);
 
         preset::Move move = legal_moves[dist(rng_)];
 
+        // Apply the selected move to the private board.
         board_->apply_move(move);
 
-        if (board_->get_current_player() == own_index)
+        // One move has been executed successfully.
+        expected_turn_++;
+
+        // Verify that the private board remains synchronized.
+        if (board_->get_turn() != expected_turn_)
         {
-            throw std::logic_error(
-                "RandomAIPlayer board did not advance after its move");
+            throw std::logic_error("Board synchronization failed.");
         }
+
+        // Check whether the move finished the game.
+        if (board_->get_phase() != GamePhase::kInProgress)
+        {
+            game_finished_ = true;
+        }
+
+        // The opponent moves next.
+        my_turn_ = false;
 
         return move;
     }
 
     /**
-     * @brief Updates the local board with the opponent's move.
+     * @brief Applies the opponent's move to the private board.
      *
-     * The received move is validated before it is applied to
-     * the player's private board.
+     * The move is verified before being applied. If the move
+     * violates the game rules or belongs to the wrong player,
+     * an exception is thrown.
      *
-     * @param opponent_move The move performed by the opponent.
+     * @param opponent_move Move performed by the opponent.
      *
-     * @throws std::runtime_error If the player has not been initialized.
-     * @throws std::logic_error If called during this player's turn or after
-     *         the game has ended.
-     * @throws std::invalid_argument If the opponent move is invalid.
+     * @throws std::logic_error
+     *         If the player has not been initialized,
+     *         the game has already finished,
+     *         or update() is called during this player's turn.
+     *
+     * @throws std::invalid_argument
+     *         If the opponent move is invalid.
      */
-    void RandomAIPlayer::update(
-        preset::Move opponent_move)
+    void RandomAIPlayer::update(preset::Move opponent_move)
     {
+        // The player must be initialized.
         if (!initialized_)
         {
-            throw std::runtime_error(
-                "RandomAIPlayer not initialized");
+            throw std::logic_error("Player not initialized.");
         }
 
-        if (board_->get_phase() == GamePhase::kFinished ||
-            board_->get_phase() == GamePhase::kDraw)
+        // Ignore updates after the game has finished.
+        if (game_finished_)
         {
-            throw std::logic_error(
-                "RandomAIPlayer cannot update after the game has ended");
+            throw std::logic_error("Game already finished.");
         }
 
-        const int own_index = player_id_ - 1;
-        if (board_->get_current_player() == own_index)
+        // update() is only valid while waiting for the opponent.
+        if (my_turn_)
         {
-            throw std::logic_error(
-                "RandomAIPlayer update called during its own turn");
+            throw std::logic_error("Update called during own turn.");
         }
 
-        const int expected_opponent_id =
-            board_->get_current_player() + 1;
-        if (opponent_move.get_id() != expected_opponent_id ||
-            opponent_move.get_id() == player_id_)
+        // The received move must belong to the opponent.
+        if (opponent_move.get_id() == player_id_)
         {
             throw std::invalid_argument(
-                "Opponent move has the wrong player ID");
+                "Received own move as opponent move.");
         }
 
+        // Verify the move using the private board.
         if (!board_->is_valid_move(opponent_move))
         {
             throw std::invalid_argument(
                 "Opponent move is invalid");
         }
 
+        // Synchronize the private board.
         board_->apply_move(opponent_move);
 
-        if (board_->get_current_player() != own_index)
+        // One additional move has now been executed.
+        expected_turn_++;
+
+        // Verify that the board state is still synchronized.
+        if (board_->get_turn() != expected_turn_)
         {
-            throw std::logic_error(
-                "RandomAIPlayer board did not advance after opponent move");
+            throw std::logic_error("Board synchronization failed.");
         }
+
+        // Update the internal game state.
+        if (board_->get_phase() != GamePhase::kInProgress)
+        {
+            game_finished_ = true;
+        }
+        else
+        {
+            my_turn_ = true;
+        }
+
     }
 
 }

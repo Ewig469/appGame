@@ -13,7 +13,6 @@
  * @author Zhixin Fu
  */
 
-
 #pragma once
 
 #include <memory>
@@ -24,91 +23,55 @@
 #include "player.h"
 #include "bruecken/board.h"
 
-namespace bruecken {
-
-/**
- * @class RandomAIPlayer
- * @brief Random computer-controlled implementation of preset::Player.
- *
- * The RandomAIPlayer searches all legal moves on the board
- * and randomly selects one of them.
- *
- * Like every player implementation, it maintains a private
- * copy of the game board in order to independently verify
- * the legality of all moves.
- */
-class RandomAIPlayer : public preset::Player {
-public:
+namespace bruecken
+{
 
     /**
-     * @brief Creates a new RandomAIPlayer.
+     * @class RandomAIPlayer
+     * @brief Random computer-controlled implementation of preset::Player.
      *
-     * Initializes the random number generator.
+     * The player searches all legal moves on its private board
+     * and randomly selects one of them.
      */
-    RandomAIPlayer();
+    class RandomAIPlayer : public preset::Player
+    {
+    public:
+        RandomAIPlayer();
 
-    /**
-     * @brief Returns the player's display name.
-     *
-     * @return Player name.
-     */
-    std::string_view get_name() override;
+        std::string_view get_name() override;
 
-    /**
-     * @brief Initializes the player.
-     *
-     * Creates the private board and stores the player's ID.
-     *
-     * @param board_config Board configuration.
-     * @param player_id Player ID (1 or 2).
-     */
-    void init(
-        const preset::BoardConfig& board_config,
-        int player_id) override;
+        void init(
+            const preset::BoardConfig &board_config,
+            int player_id) override;
 
+        std::optional<preset::Move> request() override;
 
-    /**
-     * @brief Selects a random valid move.
-     *
-     * All legal moves are collected and one of them is
-     * chosen uniformly at random.
-     *
-     * @return Selected move or std::nullopt if no legal move exists.
-     * @throws std::logic_error If it is not this player's turn or the game
-     *         has already ended.
-     */
-    std::optional<preset::Move> request() override;
+        void update(preset::Move opponent_move) override;
 
+    private:
+        /// Private board.
+        std::unique_ptr<Board> board_;
 
+        /// Random number generator.
+        std::mt19937 rng_;
 
-    /**
-     * @brief Updates the private board with the opponent's move.
-     *
-     * @param opponent_move Move performed by the opponent.
-     * @throws std::logic_error If called during this player's turn or after
-     *         the game has ended.
-     * @throws std::invalid_argument If the move has an invalid identity,
-     *         position, or rule violation.
-     */
-    void update(
-        preset::Move opponent_move) override;
+        /// Player name.
+        std::string name_ = "Random AI";
 
-private:
+        /// Player ID (1 or 2).
+        int player_id_ = -1;
 
-    /// Private board used for local game state validation.
-    std::unique_ptr<Board> board_;
+        /// True after init() has been called.
+        bool initialized_ = false;
 
-    /// Indicates whether init() has already been called.
-    bool initialized_ = false;
+        /// True if it is currently this player's turn.
+        bool my_turn_ = false;
 
-    /// ID of this player.
-    int player_id_ = -1;
+        /// True after the game has ended.
+        bool game_finished_ = false;
 
-    /// Random number generator, Mersenne Twister
-    std::mt19937 rng_;
-
-    /// Display name of the player.
-    std::string name_ = "Random AI";
-};
+        /// Expected number of processed turns.
+        int expected_turn_ = 0;
+    };
 
 } // namespace bruecken

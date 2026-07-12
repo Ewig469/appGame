@@ -7,13 +7,14 @@
  * and maintains a private copy of the game board in order to verify
  * and synchronize all moves independently.
  *
- * Author: Zhixin Fu
+ * @author Zhixin Fu
  */
 
 #include "bruecken/human_player.h"
 
 #include <memory>
 #include <stdexcept>
+#include <string_view>
 
 namespace bruecken
 {
@@ -29,7 +30,6 @@ namespace bruecken
         : gui_(gui)
     {
     }
-
 
     /**
      * @brief Returns the player's name.
@@ -60,19 +60,35 @@ namespace bruecken
             throw std::runtime_error("HumanPlayer already initialized");
         }
 
+        // Only player IDs 1 and 2 are valid.
         if (player_id != 1 && player_id != 2)
         {
             throw std::invalid_argument("player_id must be 1 or 2");
         }
 
+        // Create the player's private copy of the game board.
         board_ = std::make_unique<Board>(
             board_config.width,
             board_config.height,
             board_config.rotation);
 
+        // Verify that the board was initialized correctly.
+        if (board_->get_width() != board_config.width ||
+            board_->get_height() != board_config.height)
+        {
+            throw std::runtime_error("Board initialization failed.");
+        }
+
+        // Store the assigned player ID.
         player_id_ = player_id;
 
+        // Initialize the internal player state.
         initialized_ = true;
+        my_turn_ = (player_id == 1);
+        game_finished_ = false;
+
+        // At the beginning of the game no move has been played yet.
+        expected_turn_ = 0;
     }
 
     /**
@@ -89,51 +105,74 @@ namespace bruecken
      */
     std::optional<preset::Move> HumanPlayer::request()
     {
+        // The player must be initialized before requesting moves.
         if (!initialized_)
         {
-            throw std::runtime_error("HumanPlayer not initialized");
+            throw std::logic_error("Player not initialized.");
         }
 
-        if (board_->get_phase() == GamePhase::kFinished ||
-            board_->get_phase() == GamePhase::kDraw)
+        // No move can be requested after the game has finished.
+        if (game_finished_)
         {
-            throw std::logic_error(
-                "HumanPlayer cannot request a move after the game has ended");
+            throw std::logic_error("Game already finished.");
         }
 
-        const int own_index = player_id_ - 1;
-        if (board_->get_current_player() != own_index)
+        // request() may only be called during this player's turn.
+        if (!my_turn_)
         {
-            throw std::logic_error(
-                "HumanPlayer request called outside its turn");
+            throw std::logic_error("It is not this player's turn.");
         }
 
+        // Verify that the private board is synchronized.
+        if (board_->get_turn() != expected_turn_)
+        {
+            throw std::logic_error("Board synchronization failed.");
+        }
+
+        // Ask the GUI for the next move.
         auto move = gui_.request_move_from_current_human_player();
 
+        // No move has been entered yet.
         if (!move.has_value())
         {
             return std::nullopt;
         }
 
+        // The GUI must return a move for this player.
         if (move->get_id() != player_id_)
         {
             throw std::runtime_error(
                 "GUI returned a move for the wrong player");
         }
 
+        // Validate the move using the private board.
         if (!board_->is_valid_move(*move))
         {
             throw std::runtime_error(
                 "GUI returned an illegal move");
         }
 
+        // Apply the move to the private board.
         board_->apply_move(*move);
 
-        if (board_->get_current_player() == own_index)
+        // One additional move has now been executed.
+        expected_turn_++;
+
+        // Verify that the board state is still synchronized.
+        if (board_->get_turn() != expected_turn_)
         {
             throw std::logic_error(
-                "HumanPlayer board did not advance after its move");
+                "Board synchronization failed.");
         }
+
+        // Remember whether the game has finished.
+        if (board_->get_phase() != GamePhase::kInProgress)
+        {
+            game_finished_ = true;
+        }
+
+        // The opponent moves next.
+        my_turn_ = false;
 
         return move;
     }
@@ -153,45 +192,59 @@ namespace bruecken
      */
     void HumanPlayer::update(preset::Move opponent_move)
     {
+        // The player must be initialized first.
         if (!initialized_)
         {
-            throw std::runtime_error("HumanPlayer not initialized");
+            throw std::logic_error("Player not initialized.");
         }
 
-        if (board_->get_phase() == GamePhase::kFinished ||
-            board_->get_phase() == GamePhase::kDraw)
+        // No updates are accepted after the game has ended.
+        if (game_finished_)
         {
-            throw std::logic_error(
-                "HumanPlayer cannot update after the game has ended");
+            throw std::logic_error("Game already finished.");
         }
 
-        const int own_index = player_id_ - 1;
-        if (board_->get_current_player() == own_index)
+        // update() may only be called while waiting for the opponent.
+        if (my_turn_)
         {
-            throw std::logic_error(
-                "HumanPlayer update called during its own turn");
+            throw std::logic_error("Update called during own turn.");
         }
 
-        const int expected_opponent_id =
-            board_->get_current_player() + 1;
-        if (opponent_move.get_id() != expected_opponent_id ||
-            opponent_move.get_id() == player_id_)
+        // The received move must belong to the opponent.
+        if (opponent_move.get_id() == player_id_)
         {
             throw std::invalid_argument(
-                "Opponent move has the wrong player ID");
+                "Received own move as opponent move.");
         }
 
+        // Verify the legality of the opponent's move.
         if (!board_->is_valid_move(opponent_move))
         {
-            throw std::invalid_argument("Opponent move is invalid");
+            throw std::invalid_argument(
+                "Opponent move is invalid.");
         }
 
+        // Apply the opponent's move to the private board.
         board_->apply_move(opponent_move);
 
-        if (board_->get_current_player() != own_index)
+        // One additional move has now been executed.
+        expected_turn_++;
+
+        // Verify that the board state is still synchronized.
+        if (board_->get_turn() != expected_turn_)
         {
             throw std::logic_error(
-                "HumanPlayer board did not advance after opponent move");
+                "Board synchronization failed.");
+        }
+
+        // Remember whether the game has finished.
+        if (board_->get_phase() != GamePhase::kInProgress)
+        {
+            game_finished_ = true;
+        }
+        else
+        {
+            my_turn_ = true;
         }
     }
 

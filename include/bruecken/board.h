@@ -1,7 +1,7 @@
 /**
  * @file board.h
  * @brief Spielfeld-Klasse fuer Bruecken.
- * @author Zhibo Zhang
+ * @author Ihr Name
  */
 
 #pragma once
@@ -20,7 +20,8 @@ namespace bruecken {
  *        und Brueckengenerierung.
  *
  * Saemtliche Logik zur Spielregelpruefung sitzt in dieser Klasse.
- * Rotation wird derzeit als unrotierter Standardfall abgebildet.
+ * Die Rotation wird gespeichert und validiert; die regelbezogene
+ * Koordinatenlogik arbeitet weiterhin auf dem logischen NxM-Raster.
  */
 class Board {
 public:
@@ -102,7 +103,7 @@ public:
     /** Prueft, ob Spieler `player_id` seine beiden Seiten verbunden hat. */
     bool check_win(int player_id) const;
 
-    /** Return whether the current player has no legal position left. */
+    /** Prueft, ob ein Unentschieden vorliegt (beide blockiert). */
     bool check_draw() const;
 
 private:
@@ -153,6 +154,17 @@ private:
      * Spieler 2 analog fuer links↔rechts.
      */
     bool is_connected_across(int player_id) const;
+
+    /**
+     * @brief Prueft, ob fuer einen Spieler noch irgendeine Verbindung
+     *        zwischen seinen Zielseiten moeglich ist.
+     *
+     * Dabei werden eigene Steine und freie, fuer diesen Spieler spielbare
+     * Felder als potentielle Knoten betrachtet. Kanten sind nur moeglich,
+     * wenn eine zukuenftige Bruecke im Roesselsprung-Abstand keine bereits
+     * existierende Bruecke kreuzen wuerde.
+     */
+    bool has_potential_connection(int player_id) const;
 
     // =================================================================
     // Daten

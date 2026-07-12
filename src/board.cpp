@@ -1,12 +1,13 @@
 /**
  * @file board.cpp
  * @brief Implementierung der Spielfeld-Klasse.
- * @author Zhibo Zhang
+ * @author Ihr Name
  */
 
 #include "bruecken/board.h"
 
 #include <algorithm>
+#include <cmath>
 #include <stdexcept>
 #include <queue>
 
@@ -78,7 +79,6 @@ Direction Board::get_direction(const Position& pos) const {
 }
 
 bool Board::is_playable(const Position& pos, int player_id) const {
-    if (player_id < 0 || player_id >= kNumPlayers) return false;
     if (!is_in_bounds(pos)) return false;
 
     // Ecken duerfen von niemandem bespielt werden
@@ -108,18 +108,10 @@ bool Board::is_occupied(const Position& pos) const {
 // =====================================================================
 
 bool Board::is_valid_move(preset::Move move) const {
-    // Preset move IDs are one-based and must identify the player whose
-    // turn is currently represented by this board.
-    if (move.get_id() < 1 || move.get_id() > kNumPlayers) return false;
-    if (phase_ == GamePhase::kFinished || phase_ == GamePhase::kDraw) {
-        return false;
-    }
-
-    int pid = move.get_id() - 1;
-    if (pid != get_current_player()) return false;
-
+    int pid = move.get_id() - 1;  // preset::Move IDs sind 1-basiert
     Position pos{move.get_x(), move.get_y()};
 
+    if (pid < 0 || pid >= kNumPlayers) return false;
     if (!is_in_bounds(pos)) return false;
     if (!is_playable(pos, pid)) return false;
     if (is_occupied(pos)) return false;
@@ -159,19 +151,16 @@ void Board::apply_move(preset::Move move) {
     // Bruecken generieren
     generate_bridges(peg);
 
-    // Advance the turn before draw detection so the board can determine
-    // whether the next player is able to make the required move.
-    turn_++;
-
     // Spielende pruefen
     if (check_win(pid)) {
         phase_ = GamePhase::kFinished;
-        preset::Logger::info(
-            "Player " + std::to_string(pid + 1) + " has won!");
+        preset::Logger::info("Spieler " + std::to_string(pid) + " hat gewonnen!");
     } else if (check_draw()) {
         phase_ = GamePhase::kDraw;
-        preset::Logger::info("The game ended in a draw!");
+        preset::Logger::info("Unentschieden!");
     }
+
+    turn_++;
 }
 
 // =====================================================================
@@ -341,27 +330,69 @@ bool Board::is_connected_across(int player_id) const {
 }
 
 bool Board::check_win(int player_id) const {
-    if (player_id < 0 || player_id >= kNumPlayers) {
-        throw std::invalid_argument("player_id must be 0 or 1");
-    }
+    if (player_id < 0 || player_id >= kNumPlayers) return false;
     return is_connected_across(player_id);
+}
+
+bool Board::has_potential_connection(int player_id) const {
+    if (player_id < 0 || player_id >= kNumPlayers) return false;
+
+    const Cell opponent_cell = (player_id == 0) ? Cell::kPegP2 : Cell::kPegP1;
+
+    auto is_available = [&](const Position& pos) {
+        return is_playable(pos, player_id) && grid_[pos.y][pos.x] != opponent_cell;
+    };
+
+    std::queue<Position> q;
+    std::vector<std::vector<bool>> visited(
+        height_, std::vector<bool>(width_, false));
+
+    for (int y = 0; y < height_; y++) {
+        for (int x = 0; x < width_; x++) {
+            Position pos{x, y};
+            if (!is_available(pos)) continue;
+
+            Direction dir = get_direction(pos);
+            const bool is_start = (player_id == 0)
+                ? dir == Direction::kTop
+                : dir == Direction::kLeft;
+
+            if (is_start) {
+                q.push(pos);
+                visited[y][x] = true;
+            }
+        }
+    }
+
+    while (!q.empty()) {
+        Position cur = q.front();
+        q.pop();
+
+        Direction dir = get_direction(cur);
+        const bool is_goal = (player_id == 0)
+            ? dir == Direction::kBottom
+            : dir == Direction::kRight;
+
+        if (is_goal) return true;
+
+        for (const Position& next : knight_neighbors(cur)) {
+            if (visited[next.y][next.x] || !is_available(next)) continue;
+
+            Bridge candidate{cur, next, player_id};
+            if (would_cross_existing(candidate)) continue;
+
+            visited[next.y][next.x] = true;
+            q.push(next);
+        }
+    }
+
+    return false;
 }
 
 bool Board::check_draw() const {
     if (check_win(0) || check_win(1)) return false;
 
-    // A turn cannot be completed if the current player has no unoccupied
-    // position in either the shared area or its own border area.
-    const int current_player = get_current_player();
-    for (int y = 0; y < height_; y++) {
-        for (int x = 0; x < width_; x++) {
-            Position pos{x, y};
-            if (is_playable(pos, current_player) && !is_occupied(pos)) {
-                return false;
-            }
-        }
-    }
-    return true;
+    return !has_potential_connection(0) && !has_potential_connection(1);
 }
 
 }  // namespace bruecken
