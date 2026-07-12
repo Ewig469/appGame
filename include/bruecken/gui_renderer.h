@@ -52,7 +52,7 @@ public:
         const Board& board,
         std::vector<std::string> player_colors,
         std::vector<std::string> player_names,
-        std::string title = "BrueckenSpiel");
+        std::string title = "Knight Bridge");
 
     /**
      * @brief Closes the Raylib window if it is still open.

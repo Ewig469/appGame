@@ -1,6 +1,6 @@
-# BrückenSpiel
+# Knight Bridge
 
-BrückenSpiel ist ein strategisches Brettspiel für zwei Personen und das
+Knight Bridge ist ein strategisches Brettspiel für zwei Personen und das
 Abschlussprojekt für das Programmierpraktikum (B.Inf.1802) im Sommersemester
 2026. Ziel ist es, die beiden eigenen gegenüberliegenden Seiten durch eine
 durchgehende Folge von Brücken zu verbinden.
@@ -104,7 +104,7 @@ Ausgabe:
 
 ```text
 =========================================================================
-    BrueckenSpiel <0.1.0>
+    Knight Bridge <0.1.0>
   Authors: Zhibo Zhang, Hao Guo, Junke Pu, Zhixin Fu
 =========================================================================
 Options:

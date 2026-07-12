@@ -122,7 +122,7 @@ void run_game(const preset::Settings& settings) {
             board,
             settings.player_colors,
             settings.player_names,
-            "BrueckenSpiel");
+            "Knight Bridge");
     }
 
     std::array<std::unique_ptr<preset::Player>, kPlayerCount> players;
@@ -214,7 +214,7 @@ void run_game(const preset::Settings& settings) {
 }  // namespace bruecken
 
 int main(int argc, char* argv[]) {
-    const std::string project_name = "BrueckenSpiel";
+    const std::string project_name = "Knight Bridge";
     const std::string project_version = "0.1.0";
     const std::vector<std::string> project_authors = {
         "Zhibo Zhang",
