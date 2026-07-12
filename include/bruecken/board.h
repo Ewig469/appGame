@@ -20,8 +20,9 @@ namespace bruecken {
  *        und Brueckengenerierung.
  *
  * Saemtliche Logik zur Spielregelpruefung sitzt in dieser Klasse.
- * Die Rotation wird gespeichert und validiert; die regelbezogene
- * Koordinatenlogik arbeitet weiterhin auf dem logischen NxM-Raster.
+ * Die regelbezogene Koordinatenlogik arbeitet auf dem logischen NxM-Raster.
+ * Die Rotation wird nach der Formel aus den Spielregeln berechnet und von der
+ * GUI als affine Darstellung dieses logischen Rasters verwendet.
  */
 class Board {
 public:
@@ -43,6 +44,7 @@ public:
     int  get_width()   const { return width_; }
     int  get_height()  const { return height_; }
     double get_rotation() const { return rotation_; }
+    double get_rotation_fraction() const;
     GamePhase get_phase() const { return phase_; }
     int  get_turn()    const { return turn_; }
 
@@ -82,6 +84,8 @@ public:
      * @brief Prueft, ob ein Zug regelkonform ist.
      *
      * Bedingungen:
+     *  - Das Spiel ist noch nicht beendet
+     *  - Der Zug gehoert dem Player, der aktuell am Zug ist
      *  - Position im Raster
      *  - Position im spielbaren Bereich des Spielers
      *  - Feld nicht bereits belegt

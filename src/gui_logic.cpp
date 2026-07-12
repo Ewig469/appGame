@@ -42,22 +42,13 @@ GuiBoardGeometry calculate_board_geometry(
         throw std::invalid_argument("Screen dimensions must be positive");
     }
 
-    constexpr float kPi = 3.14159265358979323846F;
     const float left = std::max(54.0F, screen_width * 0.075F);
     const float right = screen_width - left;
     const float top = std::max(116.0F, screen_height * 0.16F);
     const float bottom =
         screen_height - std::max(52.0F, screen_height * 0.07F);
-
-    const float radians =
-        static_cast<float>(board.get_rotation()) * kPi / 180.0F;
-    const float formula_angle = radians - kPi / 4.0F;
-
-    // The school formula simplifies algebraically to tan(angle) / 2 + 1 / 2.
-    const float fraction = std::clamp(
-        std::tan(formula_angle) * 0.5F + 0.5F,
-        0.0F,
-        1.0F);
+    const float fraction =
+        static_cast<float>(board.get_rotation_fraction());
 
     const float width = right - left;
     const float height = bottom - top;

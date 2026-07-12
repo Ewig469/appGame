@@ -15,6 +15,11 @@
 #include "logger.h"
 
 namespace bruecken {
+namespace {
+
+constexpr double kPi = 3.14159265358979323846;
+
+}  // namespace
 
 // =====================================================================
 // Konstruktion
@@ -41,6 +46,16 @@ Board::Board(int width, int height, double rotation)
 
     // Raster anlegen: height Zeilen, width Spalten
     grid_.assign(height_, std::vector<Cell>(width_, Cell::kEmpty));
+}
+
+double Board::get_rotation_fraction() const {
+    const double radians = rotation_ * kPi / 180.0;
+    const double formula_angle = radians - kPi / 4.0;
+
+    // School formula:
+    // (sin(a-45) + (1 - cos(a-45)) * tan(a-45)) / 2 + 1 / 2
+    // This simplifies to tan(a-45) / 2 + 1 / 2.
+    return std::clamp(std::tan(formula_angle) * 0.5 + 0.5, 0.0, 1.0);
 }
 
 // =====================================================================
@@ -112,6 +127,8 @@ bool Board::is_valid_move(preset::Move move) const {
     Position pos{move.get_x(), move.get_y()};
 
     if (pid < 0 || pid >= kNumPlayers) return false;
+    if (phase_ == GamePhase::kFinished || phase_ == GamePhase::kDraw) return false;
+    if (pid != get_current_player()) return false;
     if (!is_in_bounds(pos)) return false;
     if (!is_playable(pos, pid)) return false;
     if (is_occupied(pos)) return false;

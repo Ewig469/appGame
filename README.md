@@ -16,7 +16,7 @@ durchgehende Folge von Brücken zu verbinden.
 
 ## Voraussetzungen
 
-- CMake 3.24 oder neuer
+- CMake 3.25 oder neuer
 - C++20-kompatibler Compiler, zum Beispiel GCC 13 oder Clang 18
 - Doxygen zur Erzeugung der Projektdokumentation
 

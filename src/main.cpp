@@ -100,6 +100,14 @@ void run_game(const preset::Settings& settings) {
         throw std::invalid_argument(
             "Bruecken requires exactly two player types");
     }
+    if (settings.player_names.size() < kPlayerCount) {
+        throw std::invalid_argument(
+            "Bruecken requires names for both players");
+    }
+    if (settings.player_colors.size() < kPlayerCount) {
+        throw std::invalid_argument(
+            "Bruecken requires colors for both players");
+    }
 
     Board board(
         settings.board_config.width,
