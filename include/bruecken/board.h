@@ -1,6 +1,6 @@
 /**
  * @file board.h
- * @brief Spielfeld-Klasse fuer Bruecken.
+ * @brief Board class for Bruecken.
  * @author Zhibo Zhang
  */
 
