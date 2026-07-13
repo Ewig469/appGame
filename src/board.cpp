@@ -25,7 +25,7 @@ constexpr double kPi = 3.14159265358979323846;
 }  // namespace
 
 // =====================================================================
-// Konstruktion
+// Construction
 // =====================================================================
 
 Board::Board(int width, int height, double rotation)
@@ -47,7 +47,7 @@ Board::Board(int width, int height, double rotation)
             std::to_string(kMaxRotation) + " liegen.");
     }
 
-    // Raster anlegen: height Zeilen, width Spalten
+    // Allocate the grid: height rows, width columns
     grid_.assign(height_, std::vector<Cell>(width_, Cell::kEmpty));
 }
 
@@ -62,7 +62,7 @@ double Board::get_rotation_fraction() const {
 }
 
 // =====================================================================
-// Koordinaten / Bereichszugehoerigkeit
+// Coordinates / Area ownership
 // =====================================================================
 
 bool Board::is_in_bounds(const Position& pos) const {
@@ -80,35 +80,35 @@ bool Board::is_corner(const Position& pos) const {
 Direction Board::get_direction(const Position& pos) const {
     if (!is_in_bounds(pos)) return Direction::kNone;
 
-    // Ecken → ueberlappend, gehoert niemandem
+    // Corners overlap and belong to nobody
     if (is_corner(pos)) return Direction::kNone;
 
-    // Oberer Rand (Zeile 0)
+    // Top edge (row 0)
     if (pos.y == 0) return Direction::kTop;
-    // Unterer Rand (Zeile height-1)
+    // Bottom edge (row height-1)
     if (pos.y == height_ - 1) return Direction::kBottom;
-    // Linker Rand (Spalte 0)
+    // Left edge (column 0)
     if (pos.x == 0) return Direction::kLeft;
-    // Rechter Rand (Spalte width-1)
+    // Right edge (column width-1)
     if (pos.x == width_ - 1) return Direction::kRight;
 
-    // Innere (N-2)x(M-2)-Flaeche → neutral
+    // Inner (N-2)x(M-2) area is neutral
     return Direction::kNone;
 }
 
 bool Board::is_playable(const Position& pos, int player_id) const {
     if (!is_in_bounds(pos)) return false;
 
-    // Ecken duerfen von niemandem bespielt werden
+    // Corners may not be played by anyone
     if (is_corner(pos)) return false;
 
     Direction dir = get_direction(pos);
 
-    // Innere Flaeche → beide duerfen
+    // Inner area may be played by both players
     if (dir == Direction::kNone) return true;
 
-    // Spieler 0: oben / unten
-    // Spieler 1: links / rechts
+    // Player 0: top / bottom
+    // Player 1: left / right
     if (player_id == 0) {
         return dir == Direction::kTop || dir == Direction::kBottom;
     } else {
@@ -122,11 +122,11 @@ bool Board::is_occupied(const Position& pos) const {
 }
 
 // =====================================================================
-// Zug
+// Move
 // =====================================================================
 
 bool Board::is_valid_move(preset::Move move) const {
-    int pid = move.get_id() - 1;  // preset::Move IDs sind 1-basiert
+    int pid = move.get_id() - 1;  // preset::Move IDs are 1-based
     Position pos{move.get_x(), move.get_y()};
 
     if (pid < 0 || pid >= kNumPlayers) return false;
@@ -155,7 +155,7 @@ void Board::apply_move(preset::Move move) {
         phase_ = GamePhase::kInProgress;
     }
 
-    // Stein setzen
+    // Place the peg
     Position pos{move.get_x(), move.get_y()};
     Cell cell = (pid == 0) ? Cell::kPegP1 : Cell::kPegP2;
     grid_[pos.y][pos.x] = cell;
@@ -168,10 +168,10 @@ void Board::apply_move(preset::Move move) {
         std::to_string(pos.x) + "," + std::to_string(pos.y) +
         " von Spieler " + std::to_string(pid));
 
-    // Bruecken generieren
+    // Generate bridges
     generate_bridges(peg);
 
-    // Spielende pruefen
+    // Check game end
     if (check_win(pid)) {
         phase_ = GamePhase::kFinished;
         preset::Logger::info("Spieler " + std::to_string(pid) + " hat gewonnen!");
@@ -184,7 +184,7 @@ void Board::apply_move(preset::Move move) {
 }
 
 // =====================================================================
-// Roesselsprung
+// Knight moves
 // =====================================================================
 
 std::vector<Position> Board::knight_offsets() {
@@ -206,7 +206,7 @@ std::vector<Position> Board::knight_neighbors(const Position& pos) const {
 }
 
 // =====================================================================
-// Bruecken
+// Bridges
 // =====================================================================
 
 bool Board::bridges_cross(const Bridge& a, const Bridge& b) {
@@ -216,13 +216,13 @@ bool Board::bridges_cross(const Bridge& a, const Bridge& b) {
         return false;
     }
 
-    // Orientierungsfunktion (Kreuzprodukt)
+    // Orientation function (cross product)
     auto orient = [](const Position& p, const Position& q, const Position& r) -> int {
         int val = (q.x - p.x) * (r.y - p.y) -
                   (q.y - p.y) * (r.x - p.x);
-        if (val > 0) return  1;   // gegen Uhrzeigersinn
-        if (val < 0) return -1;   // im Uhrzeigersinn
-        return 0;                 // kollinear
+        if (val > 0) return  1;   // counterclockwise
+        if (val < 0) return -1;   // clockwise
+        return 0;                 // collinear
     };
 
     int o1 = orient(a.from, a.to, b.from);
@@ -230,11 +230,11 @@ bool Board::bridges_cross(const Bridge& a, const Bridge& b) {
     int o3 = orient(b.from, b.to, a.from);
     int o4 = orient(b.from, b.to, a.to);
 
-    // Standardfall: unterschiedliche Orientierung → kreuzen
+    // Standard case: different orientations mean the segments cross
     if (o1 != o2 && o3 != o4) return true;
 
-    // Kollinear-Fall: auf derselben Linie, ueberlappen sie?
-    // (Im Roesselsprung-Raster extrem selten, aber der Vollstaendigkeit halber)
+    // Collinear case: on the same line, do they overlap?
+    // This is extremely rare on the knight-move grid, but handled for completeness.
     auto on_segment = [](const Position& p, const Position& q, const Position& r) {
         return r.x <= std::max(p.x, q.x) && r.x >= std::min(p.x, q.x) &&
                r.y <= std::max(p.y, q.y) && r.y >= std::min(p.y, q.y);
@@ -256,17 +256,17 @@ bool Board::would_cross_existing(const Bridge& candidate) const {
 }
 
 void Board::generate_bridges(const Peg& new_peg) {
-    // Alle eigenen Steine durchgehen, Roesselsprung-Paare finden
+    // Scan all own pegs and find knight-move pairs
     int pid = new_peg.player_id;
     for (const auto& other : pegs_by_player_[pid]) {
         if (other.pos == new_peg.pos) continue;
 
-        // Roesselsprung-Abstand?
+        // Knight-move distance?
         int dx = std::abs(new_peg.pos.x - other.pos.x);
         int dy = std::abs(new_peg.pos.y - other.pos.y);
         if (!((dx == 1 && dy == 2) || (dx == 2 && dy == 1))) continue;
 
-        // Bruecke bauen, wenn sie keine existierende kreuzt
+        // Build a bridge if it does not cross any existing bridge
         Bridge candidate{new_peg.pos, other.pos, pid};
         if (!would_cross_existing(candidate)) {
             bridges_.push_back(candidate);
@@ -281,7 +281,7 @@ void Board::generate_bridges(const Peg& new_peg) {
 }
 
 // =====================================================================
-// Spielende
+// Game end
 // =====================================================================
 
 bool Board::is_connected_across(int player_id) const {
@@ -290,12 +290,12 @@ bool Board::is_connected_across(int player_id) const {
 
     if (pegs.empty()) return false;
 
-    // Index eines Steins im pegs-Array
-    // Adjazenzliste: Stein-Index → Liste benachbarter Stein-Indizes
+    // Index of a peg in the pegs array
+    // Adjacency list: peg index -> neighboring peg indices
     std::vector<std::vector<int>> adj(pegs.size());
 
     for (const auto& br : bridges) {
-        // Finde die Indizes der beiden Endpunkte
+        // Find the indices of both endpoints
         int idx_from = -1, idx_to = -1;
         for (int i = 0; i < static_cast<int>(pegs.size()); i++) {
             if (pegs[i].pos == br.from) idx_from = i;
@@ -307,7 +307,7 @@ bool Board::is_connected_across(int player_id) const {
         }
     }
 
-    // Startknoten: alle Steine, die auf einer der eigenen Seiten liegen
+    // Start nodes: all pegs that lie on one of the player's own sides
     std::queue<int> q;
     std::vector<bool> visited(pegs.size(), false);
 

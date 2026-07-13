@@ -16,29 +16,29 @@ namespace preset { class Move; }
 namespace bruecken {
 
 /**
- * @brief Modelliert das NxM Spielbrett inklusive Spielstand, Zugverifikation
- *        und Brueckengenerierung.
+ * @brief Models the NxM game board, including game state, move validation,
+ *        and bridge generation.
  *
- * Saemtliche Logik zur Spielregelpruefung sitzt in dieser Klasse.
- * Die regelbezogene Koordinatenlogik arbeitet auf dem logischen NxM-Raster.
- * Die Rotation wird nach der Formel aus den Spielregeln berechnet und von der
- * GUI als affine Darstellung dieses logischen Rasters verwendet.
+ * All game-rule validation logic lives in this class.
+ * Rule-related coordinate logic operates on the logical NxM grid.
+ * Rotation is calculated from the formula in the game rules and used by the
+ * GUI as an affine representation of this logical grid.
  */
 class Board {
 public:
     // =================================================================
-    // Konstruktion
+    // Construction
     // =================================================================
 
     /**
-     * @param width  Breite  (5..96)
-     * @param height Hoehe   (5..96)
-     * @param rotation Rotation in Grad (0..90), Standard = 0
+     * @param width  Width  (5..96)
+     * @param height Height (5..96)
+     * @param rotation Rotation in degrees (0..90), default = 0
      */
     Board(int width, int height, double rotation = 0.0);
 
     // =================================================================
-    // Abfragen
+    // Queries
     // =================================================================
 
     int  get_width()   const { return width_; }
@@ -48,130 +48,128 @@ public:
     GamePhase get_phase() const { return phase_; }
     int  get_turn()    const { return turn_; }
 
-    /// 0 = Spieler 1,  1 = Spieler 2
+    /// 0 = player 1,  1 = player 2
     int  get_current_player() const { return turn_ % kNumPlayers; }
 
     const std::vector<Peg>&    get_pegs()    const { return pegs_; }
     const std::vector<Bridge>& get_bridges() const { return bridges_; }
 
     // =================================================================
-    // Koordinaten / Bereichszugehoerigkeit
+    // Coordinates / Area ownership
     // =================================================================
 
-    /** Liegt die Position im gueltigen NxM Raster? */
+    /** Is the position inside the valid NxM grid? */
     bool is_in_bounds(const Position& pos) const;
 
     /**
-     * @brief Gibt an, zu wessen Grenzgebiet diese Position gehoert.
+     * @brief Returns which boundary area this position belongs to.
      *
-     *  - Innere (N-2)x(M-2)-Flaeche → kNone  (neutral, beide duerfen setzen)
-     *  - Aeussere Randstreifen → kTop/kBottom (Spieler 1) / kLeft/kRight (Spieler 2)
-     *  - Vier Ecken → kNone (Ueberlappung, niemand)
+     *  - Inner (N-2)x(M-2) area -> kNone (neutral, both players may place)
+     *  - Outer edge strips -> kTop/kBottom (player 1) / kLeft/kRight (player 2)
+     *  - Four corners -> kNone (overlap, nobody)
      */
     Direction get_direction(const Position& pos) const;
 
-    /** Darf Spieler `player_id` auf dieses Feld setzen? */
+    /** May player `player_id` place on this field? */
     bool is_playable(const Position& pos, int player_id) const;
 
-    /** Ist die Position bereits mit einem Stein belegt? */
+    /** Is the position already occupied by a peg? */
     bool is_occupied(const Position& pos) const;
 
     // =================================================================
-    // Zug
+    // Move
     // =================================================================
 
     /**
-     * @brief Prueft, ob ein Zug regelkonform ist.
+     * @brief Checks whether a move is legal.
      *
-     * Bedingungen:
-     *  - Das Spiel ist noch nicht beendet
-     *  - Der Zug gehoert dem Player, der aktuell am Zug ist
-     *  - Position im Raster
-     *  - Position im spielbaren Bereich des Spielers
-     *  - Feld nicht bereits belegt
+     * Conditions:
+     *  - The game has not ended yet
+     *  - The move belongs to the player whose turn it is
+     *  - Position is inside the grid
+     *  - Position is in the player's playable area
+     *  - Field is not already occupied
      */
     bool is_valid_move(preset::Move move) const;
 
     /**
-     * @brief Fuehrt einen zuvor validierten Zug aus.
+     * @brief Applies a previously validated move.
      *
-     * Setzt den Stein, generiert ggf. neue Bruecken und prueft
-     * auf Spielende. Wirft bei ungueltigem Zug.
+     * Places the peg, generates new bridges if applicable, and checks
+     * for game end. Throws for an invalid move.
      */
     void apply_move(preset::Move move);
 
     // =================================================================
-    // Spielende
+    // Game end
     // =================================================================
 
-    /** Prueft, ob Spieler `player_id` seine beiden Seiten verbunden hat. */
+    /** Checks whether player `player_id` has connected both target sides. */
     bool check_win(int player_id) const;
 
-    /** Prueft, ob ein Unentschieden vorliegt (beide blockiert). */
+    /** Checks whether the game is a draw (both players are blocked). */
     bool check_draw() const;
 
 private:
     // =================================================================
-    // Interne Typen
+    // Internal types
     // =================================================================
 
     enum class Cell : uint8_t { kEmpty, kPegP1, kPegP2 };
 
     // =================================================================
-    // Hilfsfunktionen
+    // Helper functions
     // =================================================================
 
-    /** Roesselsprung-Offsets (8 moegliche Nachbarpositionen). */
+    /** Knight-move offsets (8 possible neighboring positions). */
     static std::vector<Position> knight_offsets();
 
-    /** Liefert alle Positionen im Roesselsprung-Abstand, die im Raster liegen. */
+    /** Returns all knight-move positions that are inside the grid. */
     std::vector<Position> knight_neighbors(const Position& pos) const;
 
     bool is_corner(const Position& pos) const;
 
     /**
-     * @brief Prueft, ob zwei Bruecken sich kreuzen.
+     * @brief Checks whether two bridges cross.
      *
-     * Zwei Strecken (a1,a2) und (b1,b2) kreuzen sich, wenn sie sich
-     * an einem Nicht-Endpunkt schneiden.
+     * Two segments (a1,a2) and (b1,b2) cross if they intersect at a
+     * non-endpoint.
      */
     static bool bridges_cross(const Bridge& a, const Bridge& b);
 
     /**
-     * @brief Prueft, ob eine neue Bruecke eine existierende kreuzt.
+     * @brief Checks whether a new bridge crosses an existing one.
      */
     bool would_cross_existing(const Bridge& candidate) const;
 
     /**
-     * @brief Baut neue Bruecken nach Setzen eines Steins.
+     * @brief Builds new bridges after placing a peg.
      *
-     * Durchmustert alle Steine des Spielers, prueft Roesselsprung-
-     * Nachbarschaft und erzeugt Bruecken, die keine existierende kreuzen.
+     * Scans all of the player's pegs, checks knight-move adjacency, and
+     * creates bridges that do not cross any existing bridge.
      */
     void generate_bridges(const Peg& new_peg);
 
     /**
-     * @brief Graphbasierte Gewinnpruefung.
+     * @brief Graph-based win check.
      *
-     * Spieler 1 gewinnt, wenn eine durchgehende Brueckenkette
-     * die obere mit der unteren Seite verbindet.
-     * Spieler 2 analog fuer links↔rechts.
+     * Player 1 wins if a continuous chain of bridges connects the top side
+     * to the bottom side. Player 2 wins analogously from left to right.
      */
     bool is_connected_across(int player_id) const;
 
     /**
-     * @brief Prueft, ob fuer einen Spieler noch irgendeine Verbindung
-     *        zwischen seinen Zielseiten moeglich ist.
+     * @brief Checks whether any connection between a player's target sides
+     *        is still possible.
      *
-     * Dabei werden eigene Steine und freie, fuer diesen Spieler spielbare
-     * Felder als potentielle Knoten betrachtet. Kanten sind nur moeglich,
-     * wenn eine zukuenftige Bruecke im Roesselsprung-Abstand keine bereits
-     * existierende Bruecke kreuzen wuerde.
+     * The player's own pegs and free fields playable by that player are
+     * treated as potential nodes. Edges are only possible if a future
+     * knight-move bridge would not cross an existing bridge.
      */
     bool has_potential_connection(int player_id) const;
 
     // =================================================================
-    // Daten
+    // Data
     // =================================================================
 
     int width_;
@@ -180,13 +178,13 @@ private:
     GamePhase phase_ = GamePhase::kNotStarted;
     int turn_ = 0;
 
-    /// 2D-Raster: grid_[row][col]
+    /// 2D grid: grid_[row][col]
     std::vector<std::vector<Cell>> grid_;
 
     std::vector<Peg>    pegs_;
     std::vector<Bridge> bridges_;
 
-    // Nach Spieler-ID getrennte Listen fuer schnellen Zugriff
+    // Lists separated by player ID for fast access
     std::vector<Peg>    pegs_by_player_[kNumPlayers];
     std::vector<Bridge> bridges_by_player_[kNumPlayers];
 };

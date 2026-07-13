@@ -1,7 +1,7 @@
 /**
  * @file common.h
- * @brief Projektweite Basistypen und Konstanten im Namespace bruecken.
- * @author Ihr Name
+ * @brief Project-wide base types and constants in the bruecken namespace.
+ * @author Zhibo Zhang
  */
 
 #pragma once
@@ -14,33 +14,33 @@
 namespace bruecken {
 
 // =====================================================================
-// Konstanten
+// Constants
 // =====================================================================
 
-/// Minimale Spielfeldbreite/-hoehe
+/// Minimum board width/height
 inline constexpr int kBoardMinSize = 5;
-/// Maximale Spielfeldbreite/-hoehe
+/// Maximum board width/height
 inline constexpr int kBoardMaxSize = 96;
-/// Vorgabe-Spielfeldgroesse
+/// Default board size
 inline constexpr int kDefaultBoardSize = 24;
-/// Minimale Rotation in Grad
+/// Minimum rotation in degrees
 inline constexpr double kMinRotation = 0.0;
-/// Maximale Rotation in Grad
+/// Maximum rotation in degrees
 inline constexpr double kMaxRotation = 90.0;
-/// GUI-Fenstergroesse (quadratisch)
+/// Default GUI window size (square)
 inline constexpr int kDefaultWindowSize = 720;
-/// Anzahl der Spieler
+/// Number of players
 inline constexpr int kNumPlayers = 2;
 
 // =====================================================================
-// Position im Raster
+// Grid position
 // =====================================================================
 
 /**
- * @brief Ein (x, y)-Koordinatenpaar auf dem Spielbrett.
+ * @brief An (x, y) coordinate pair on the game board.
  *
- * x = Spalte (ab 0, von links nach rechts)
- * y = Zeile  (ab 0, von oben nach unten)
+ * x = column (starting at 0, left to right)
+ * y = row    (starting at 0, top to bottom)
  */
 struct Position {
     int x = 0;
@@ -60,19 +60,19 @@ inline std::ostream& operator<<(std::ostream& os, const Position& p) {
 }
 
 // =====================================================================
-// Himmelsrichtung / Brettseite
+// Direction / Board side
 // =====================================================================
 
-/// Welcher Seite des Spielfelds ein Bereich zugeordnet ist.
+/// Which side of the board an area is assigned to.
 enum class Direction {
     kTop,
     kBottom,
     kLeft,
     kRight,
-    kNone  ///< neutrale / überlappende Zone
+    kNone  ///< neutral / overlapping zone
 };
 
-/// Gibt die Gegenrichtung zurueck.
+/// Returns the opposite direction.
 inline Direction opposite(Direction d) {
     switch (d) {
         case Direction::kTop:    return Direction::kBottom;
@@ -84,17 +84,17 @@ inline Direction opposite(Direction d) {
 }
 
 // =====================================================================
-// Spielstein
+// Peg
 // =====================================================================
 
 /**
- * @brief Ein gesetzter Spielstein.
+ * @brief A placed peg.
  *
- * Jeder Stein gehoert genau einem Spieler (player_id = 0 oder 1).
+ * Each peg belongs to exactly one player (player_id = 0 or 1).
  */
 struct Peg {
     Position pos;
-    int player_id = 0;  ///< 0 = Spieler 1,  1 = Spieler 2
+    int player_id = 0;  ///< 0 = player 1,  1 = player 2
 
     bool operator==(const Peg& other) const {
         return pos == other.pos && player_id == other.player_id;
@@ -102,15 +102,15 @@ struct Peg {
 };
 
 // =====================================================================
-// Bruecke
+// Bridge
 // =====================================================================
 
 /**
- * @brief Eine Bruecke zwischen zwei Spielsteinen desselben Spielers.
+ * @brief A bridge between two pegs owned by the same player.
  *
- * Eine Bruecke entsteht automatisch, wenn zwei Steine im
- * Roesselsprung-Abstand gesetzt sind (dx=1,dy=2 oder dx=2,dy=1)
- * und die Verbindung keine andere Bruecke kreuzt.
+ * A bridge is created automatically when two pegs are placed at knight-move
+ * distance (dx=1,dy=2 or dx=2,dy=1) and the connection does not cross any
+ * other bridge.
  */
 struct Bridge {
     Position from;
@@ -124,28 +124,28 @@ struct Bridge {
 };
 
 // =====================================================================
-// Spielphase
+// Game phase
 // =====================================================================
 
-/// Aktuelle Phase des Spiels.
+/// Current game phase.
 enum class GamePhase {
     kNotStarted,
     kInProgress,
-    kFinished,   ///< ein Spieler hat gewonnen
-    kDraw        ///< Unentschieden
+    kFinished,   ///< a player has won
+    kDraw        ///< draw
 };
 
 // =====================================================================
-// Spielerfarben (Hex-RGB strings)
+// Player colors (Hex-RGB strings)
 // =====================================================================
 
-/// Vorgabefarben: Spieler 1 = Rot, Spieler 2 = Blau
+/// Default colors: player 1 = red, player 2 = blue
 inline const std::vector<std::string> kDefaultPlayerColors = {
     "#ff0000",
     "#0000ff"
 };
 
-/// Vorgabenamen
+/// Default names
 inline const std::vector<std::string> kDefaultPlayerNames = {
     "Player 1",
     "Player 2"
