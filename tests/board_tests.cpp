@@ -1,3 +1,9 @@
+/**
+ * @file board_tests.cpp
+ * @brief Tests for the board class.
+ * @author Zhibo Zhang
+ */
+
 #include "bruecken/board.h"
 
 #include <cmath>

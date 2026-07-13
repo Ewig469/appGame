@@ -1,7 +1,10 @@
 /**
  * @file board.cpp
- * @brief Implementierung der Spielfeld-Klasse.
- * @author Ihr Name
+ * @brief Implements the Bruecken board model and core game rules.
+ *
+ * This file manages board state, move validation, bridge generation, and
+ * win/draw detection for the logical game grid.
+ * @author Zhibo Zhang
  */
 
 #include "bruecken/board.h"
