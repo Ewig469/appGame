@@ -228,7 +228,7 @@ void draw_status(
         kTextColor);
 
     const std::string round =
-        "Runde " + std::to_string(board.get_turn() + 1);
+        "Round " + std::to_string(board.get_turn() + 1);
 
     DrawText(
         round.c_str(),
@@ -362,11 +362,11 @@ void GuiRenderer::draw_frame() {
                 pending_move_ = *move;
 
                 feedback_ =
-                    "Ausgewählt: (" +
+                    "Selected: (" +
                     std::to_string(position->x) + ", " +
                     std::to_string(position->y) + ")";
             } else {
-                feedback_ = "Dieses Feld ist nicht spielbar.";
+                feedback_ = "This field is not playable.";
             }
         }
     }

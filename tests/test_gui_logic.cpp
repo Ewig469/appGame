@@ -157,11 +157,11 @@ void test_click_to_move_mapping() {
 void test_player_one_status_and_winning_path() {
     bruecken::Board board(5, 5);
     const std::vector<std::string> names = {"Alice", "Bob"};
-    require(bruecken::game_status_text(board, names) == "Alice ist am Zug",
+    require(bruecken::game_status_text(board, names) == "Alice to move",
             "Initial status must name Player 1");
 
     board.apply_move(preset::Move(1, 0, 1));
-    require(bruecken::game_status_text(board, names) == "Bob ist am Zug",
+    require(bruecken::game_status_text(board, names) == "Bob to move",
             "Status must change after Player 1 moves");
     board.apply_move(preset::Move(4, 1, 2));
     board.apply_move(preset::Move(2, 2, 1));
@@ -169,7 +169,7 @@ void test_player_one_status_and_winning_path() {
     board.apply_move(preset::Move(1, 4, 1));
 
     require(board.check_win(0), "Player 1 must have a winning connection");
-    require(bruecken::game_status_text(board, names) == "Alice gewinnt!",
+    require(bruecken::game_status_text(board, names) == "Alice wins!",
             "Winning status must name Player 1");
     const auto path = bruecken::calculate_winning_path(board, 0);
     require(path.size() == 3,

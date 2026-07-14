@@ -2,7 +2,7 @@
  * @file human_player.cpp
  * @brief Implementation of the HumanPlayer class.
  *
- * This file implements a human-controlled player for the Bruecken game.
+ * This file implements a human-controlled player for the Knight Bridge game.
  * The player receives moves from the graphical user interface (GUI)
  * and maintains a private copy of the game board in order to verify
  * and synchronize all moves independently.

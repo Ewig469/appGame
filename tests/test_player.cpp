@@ -14,6 +14,7 @@
 #include "move.h"
 #include "player_gui_access.h"
 
+#include "bruecken/board.h"
 #include "bruecken/human_player.h"
 #include "bruecken/random_ai_player.h"
 
@@ -225,10 +226,19 @@ namespace
             "Players must reject updates after game end");
     }
 
-}
+    bool is_finished(const bruecken::Board &board)
+    {
+        const auto phase = board.get_phase();
+        return phase == bruecken::GamePhase::kFinished ||
+               phase == bruecken::GamePhase::kDraw;
+    }
 
 void test_random_ai_long_game(const preset::BoardConfig &config)
 {
+    bruecken::Board board(
+        config.width,
+        config.height,
+        config.rotation);
     bruecken::RandomAIPlayer player_one;
     bruecken::RandomAIPlayer player_two;
 
@@ -238,6 +248,11 @@ void test_random_ai_long_game(const preset::BoardConfig &config)
     // Play until the game ends or the safety limit is reached.
     for (int turn = 0; turn < 5000; ++turn)
     {
+        if (is_finished(board))
+        {
+            break;
+        }
+
         auto move1 = player_one.request();
 
         if (!move1.has_value())
@@ -245,7 +260,13 @@ void test_random_ai_long_game(const preset::BoardConfig &config)
             break;
         }
 
+        board.apply_move(*move1);
         player_two.update(*move1);
+
+        if (is_finished(board))
+        {
+            break;
+        }
 
         auto move2 = player_two.request();
 
@@ -254,8 +275,12 @@ void test_random_ai_long_game(const preset::BoardConfig &config)
             break;
         }
 
+        board.apply_move(*move2);
         player_one.update(*move2);
     }
+
+    require(is_finished(board),
+            "Random AI long game must reach a terminal board state.");
 
     require_exception(
         [&]
@@ -270,6 +295,10 @@ void test_random_ai_long_game(const preset::BoardConfig &config)
 
 void test_player_board_synchronization(const preset::BoardConfig &config)
 {
+    bruecken::Board board(
+        config.width,
+        config.height,
+        config.rotation);
     bruecken::RandomAIPlayer player_one;
     bruecken::RandomAIPlayer player_two;
 
@@ -278,6 +307,11 @@ void test_player_board_synchronization(const preset::BoardConfig &config)
 
     for (int turn = 0; turn < 5000; ++turn)
     {
+        if (is_finished(board))
+        {
+            break;
+        }
+
         auto move1 = player_one.request();
 
         if (!move1.has_value())
@@ -285,7 +319,13 @@ void test_player_board_synchronization(const preset::BoardConfig &config)
             break;
         }
 
+        board.apply_move(*move1);
         player_two.update(*move1);
+
+        if (is_finished(board))
+        {
+            break;
+        }
 
         auto move2 = player_two.request();
 
@@ -294,8 +334,12 @@ void test_player_board_synchronization(const preset::BoardConfig &config)
             break;
         }
 
+        board.apply_move(*move2);
         player_one.update(*move2);
     }
+
+    require(is_finished(board),
+            "Player board synchronization test must reach a terminal state.");
 }
 
 void test_large_board()
@@ -318,6 +362,8 @@ void test_large_board()
             "Random AI must find a move on a 96x96 board.");
 
     player_two.update(*move);
+}
+
 } // namespace
 
 int main()

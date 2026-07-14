@@ -236,12 +236,12 @@ std::string game_status_text(
     }
     if (board.get_phase() == GamePhase::kFinished) {
         const int winner = board.check_win(0) ? 0 : 1;
-        return player_names[winner] + " gewinnt!";
+        return player_names[winner] + " wins!";
     }
     if (board.get_phase() == GamePhase::kDraw) {
-        return "Unentschieden";
+        return "Draw";
     }
-    return player_names[board.get_current_player()] + " ist am Zug";
+    return player_names[board.get_current_player()] + " to move";
 }
 
 }  // namespace bruecken

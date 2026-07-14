@@ -7,6 +7,7 @@
 #include <algorithm>
 #include <array>
 #include <chrono>
+#include <cctype>
 #include <memory>
 #include <stdexcept>
 #include <string>
@@ -94,19 +95,39 @@ bool wait_after_ai_move(GuiRenderer* gui, long delay_ms) {
     return !gui->should_close();
 }
 
+/** Return whether a color argument follows the required #RRGGBB format. */
+bool is_hex_rgb_color(const std::string& color) {
+    if (color.size() != 7 || color.front() != '#') {
+        return false;
+    }
+
+    return std::all_of(
+        color.begin() + 1,
+        color.end(),
+        [](unsigned char character) {
+            return std::isxdigit(character) != 0;
+        });
+}
+
 /** Run one complete two-player game. */
 void run_game(const preset::Settings& settings) {
     if (settings.player_types.size() != kPlayerCount) {
         throw std::invalid_argument(
-            "Bruecken requires exactly two player types");
+            "Knight Bridge requires exactly two player types");
     }
     if (settings.player_names.size() < kPlayerCount) {
         throw std::invalid_argument(
-            "Bruecken requires names for both players");
+            "Knight Bridge requires names for both players");
     }
     if (settings.player_colors.size() < kPlayerCount) {
         throw std::invalid_argument(
-            "Bruecken requires colors for both players");
+            "Knight Bridge requires colors for both players");
+    }
+    for (int index = 0; index < kPlayerCount; ++index) {
+        if (!is_hex_rgb_color(settings.player_colors[index])) {
+            throw std::invalid_argument(
+                "Player colors must use the #RRGGBB format");
+        }
     }
 
     Board board(

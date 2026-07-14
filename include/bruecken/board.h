@@ -1,6 +1,6 @@
 /**
  * @file board.h
- * @brief Board class for Bruecken.
+ * @brief Board class for Knight Bridge.
  * @author Zhibo Zhang
  */
 

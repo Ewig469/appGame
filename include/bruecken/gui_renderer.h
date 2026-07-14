@@ -1,6 +1,6 @@
 /**
  * @file gui_renderer.h
- * @brief Declares the Raylib-based GUI for the Bruecken game.
+ * @brief Declares the Raylib-based GUI for Knight Bridge.
  * @author Hao Guo
  * @author Junke Pu
  *

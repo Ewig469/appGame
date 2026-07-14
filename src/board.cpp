@@ -1,6 +1,6 @@
 /**
  * @file board.cpp
- * @brief Implements the Bruecken board model and core game rules.
+ * @brief Implements the Knight Bridge board model and core game rules.
  *
  * This file manages board state, move validation, bridge generation, and
  * win/draw detection for the logical game grid.
@@ -36,15 +36,15 @@ Board::Board(int width, int height, double rotation)
     if (width < kBoardMinSize || width > kBoardMaxSize ||
         height < kBoardMinSize || height > kBoardMaxSize) {
         throw std::invalid_argument(
-            "Board-Groesse muss zwischen " +
-            std::to_string(kBoardMinSize) + " und " +
-            std::to_string(kBoardMaxSize) + " liegen.");
+            "Board size must be between " +
+            std::to_string(kBoardMinSize) + " and " +
+            std::to_string(kBoardMaxSize) + ".");
     }
     if (rotation < kMinRotation || rotation > kMaxRotation) {
         throw std::invalid_argument(
-            "Rotation muss zwischen " +
-            std::to_string(kMinRotation) + " und " +
-            std::to_string(kMaxRotation) + " liegen.");
+            "Rotation must be between " +
+            std::to_string(kMinRotation) + " and " +
+            std::to_string(kMaxRotation) + ".");
     }
 
     // Allocate the grid: height rows, width columns
@@ -141,10 +141,10 @@ bool Board::is_valid_move(preset::Move move) const {
 
 void Board::apply_move(preset::Move move) {
     if (phase_ == GamePhase::kFinished || phase_ == GamePhase::kDraw) {
-        throw std::runtime_error("Spiel ist bereits beendet.");
+        throw std::runtime_error("The game has already finished.");
     }
     if (!is_valid_move(move)) {
-        throw std::invalid_argument("Ungueltiger Zug: (" +
+        throw std::invalid_argument("Invalid move: (" +
             std::to_string(move.get_x()) + "," +
             std::to_string(move.get_y()) + ")");
     }
@@ -164,9 +164,9 @@ void Board::apply_move(preset::Move move) {
     pegs_.push_back(peg);
     pegs_by_player_[pid].push_back(peg);
 
-    preset::Logger::debug("Stein gesetzt: " +
+    preset::Logger::debug("Peg placed: " +
         std::to_string(pos.x) + "," + std::to_string(pos.y) +
-        " von Spieler " + std::to_string(pid));
+        " by player " + std::to_string(pid));
 
     // Generate bridges
     generate_bridges(peg);
@@ -174,10 +174,10 @@ void Board::apply_move(preset::Move move) {
     // Check game end
     if (check_win(pid)) {
         phase_ = GamePhase::kFinished;
-        preset::Logger::info("Spieler " + std::to_string(pid) + " hat gewonnen!");
+        preset::Logger::info("Player " + std::to_string(pid) + " has won!");
     } else if (check_draw()) {
         phase_ = GamePhase::kDraw;
-        preset::Logger::info("Unentschieden!");
+        preset::Logger::info("Draw!");
     }
 
     turn_++;
@@ -210,7 +210,7 @@ std::vector<Position> Board::knight_neighbors(const Position& pos) const {
 // =====================================================================
 
 bool Board::bridges_cross(const Bridge& a, const Bridge& b) {
-    // Gemeinsamer Endpunkt → kein Kreuzen
+    // A shared endpoint is not a crossing.
     if (a.from == b.from || a.from == b.to ||
         a.to   == b.from || a.to   == b.to) {
         return false;
@@ -271,7 +271,7 @@ void Board::generate_bridges(const Peg& new_peg) {
         if (!would_cross_existing(candidate)) {
             bridges_.push_back(candidate);
             bridges_by_player_[pid].push_back(candidate);
-            preset::Logger::debug("Bruecke gebaut: (" +
+            preset::Logger::debug("Bridge created: (" +
                 std::to_string(candidate.from.x) + "," +
                 std::to_string(candidate.from.y) + ") -> (" +
                 std::to_string(candidate.to.x) + "," +
