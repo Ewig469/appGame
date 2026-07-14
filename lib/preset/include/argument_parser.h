@@ -49,6 +49,9 @@ struct Settings {
   /// The file from which to load a game replay (also know as a demo).
   /// This only applies if `OptionalFeature::CHRONOLOGY` is implemented.
   std::string replay_path;
+  /// Whether to enable animations.
+  /// This only applies if `OptionalFeature::ANIMATIONS` is implemented.
+  bool use_animations = true;
 };
 
 // Convert an optional feature to a string
@@ -73,6 +76,9 @@ public:
       arg_buffer_.push_back(argv[i]);
     }
     parse();
+    if (settings_.player_types[0] == PlayerType::HUMAN || settings_.player_types[1] == PlayerType::HUMAN){
+      settings_.show_GUI = true;
+    }
     Logger::set_max_level(settings_.log_level);
   }
   /// Get the settings object created by the parser.

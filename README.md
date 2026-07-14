@@ -20,7 +20,7 @@ chain of bridges.
 - A C++20-compatible compiler, for example GCC 13 or Clang 18
 - Doxygen for generating the project documentation
 
-Preset 1.0.2 and Raylib 6.0 are included in this repository and do not need to
+Preset 1.1.0 and Raylib 6.0 are included in this repository and do not need to
 be downloaded separately.
 
 ## Build
@@ -127,7 +127,7 @@ Options:
                                RANDOM_AI, ...]
 _________________________________________________________________________
 
-Preset: v1.0.2 (28.06.2026)
+Preset: v1.1.0 (13.07.2026)
 Raylib: 6.0
   This project uses Raylib.
     Website: https://www.raylib.com/

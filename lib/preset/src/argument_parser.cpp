@@ -69,6 +69,9 @@ void ArgumentParser::print_help(){
     std::cout << " -t,--tournament <ROUNDS>\tPlay a tournament. (TOURNAMENTS)" << std::endl
               << " -tw,--tournamentWait\t\tWait for user input before starting\n\t\t\t\tthe next round. (TOURNAMENTS)" << std::endl;
   }
+  if (std::find(settings_.implementedOptionalFeatures.begin(), settings_.implementedOptionalFeatures.end(), OptionalFeature::ANIMATIONS) != settings_.implementedOptionalFeatures.end()){
+    std::cout << " -na,--no_animations \t\tDisable Animations. (ANIMATIONS)" << std::endl;
+  }
 
   std::cout << "_________________________________________________________________________" << std::endl << std::endl;
 
@@ -173,7 +176,6 @@ void ArgumentParser::parse(){
         auto type = next();
         if (type == "HUMAN"){
           types.push_back(PlayerType::HUMAN);
-          settings_.show_GUI = true;
           continue;
         }
         if (type == "RANDOM_AI"){
@@ -287,9 +289,14 @@ void ArgumentParser::parse(){
       }
       continue;
     }
-    // parse show gui
+    // parse tournament wait
     if ((opt == "-tw") || (opt == "--tournamentWait")) {
       settings_.wait_after_tournament_round = true;
+      continue;
+    }
+    // parse disable animations
+    if ((opt == "-na") || (opt == "--no_animations")) {
+      settings_.use_animations = false;
       continue;
     }
 

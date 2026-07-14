@@ -6,7 +6,7 @@ namespace preset {
 struct BoardConfig {
   int width = 24;
   int height = 24;
-  int rotation = 0;
+  float rotation = 0;
 };
 
 } //namespace
