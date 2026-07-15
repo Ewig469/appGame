@@ -39,19 +39,73 @@ if(BRUECKEN_USE_BUNDLED_RAYLIB)
   set(BUILD_SHARED_LIBS OFF CACHE BOOL "" FORCE)
   add_subdirectory(lib/raylib/raylib-6.0)
 else()
+  set(RAYLIB_VERSION "6.0")
+
+  if(NOT DEFINED RAYLIB_ROOT)
+    if(EXISTS "${CMAKE_SOURCE_DIR}/lib/raylib-${RAYLIB_VERSION}_linux_amd64")
+      set(RAYLIB_ROOT "${CMAKE_SOURCE_DIR}/lib/raylib-${RAYLIB_VERSION}_linux_amd64")
+    else()
+      set(RAYLIB_ROOT "${CMAKE_SOURCE_DIR}/raylib")
+    endif()
+  endif()
+
   set(RAYLIB_ROOT
-    "${CMAKE_SOURCE_DIR}/lib/raylib-6.0_linux_amd64"
+    "${RAYLIB_ROOT}"
     CACHE PATH "Path to the local prebuilt raylib 6.0 package"
   )
 
   if(WIN32 AND MSVC)
+    set(RAYLIB_PACKAGE_URL
+      "https://github.com/raysan5/raylib/releases/download/${RAYLIB_VERSION}/raylib-${RAYLIB_VERSION}_win64_msvc16.zip"
+    )
     set(RAYLIB_LIBRARY_NAME "raylib.lib")
+  elseif(APPLE)
+    set(RAYLIB_PACKAGE_URL
+      "https://github.com/raysan5/raylib/releases/download/${RAYLIB_VERSION}/raylib-${RAYLIB_VERSION}_macos.tar.gz"
+    )
+    set(RAYLIB_LIBRARY_NAME "libraylib.a")
   else()
+    set(RAYLIB_PACKAGE_URL
+      "https://github.com/raysan5/raylib/releases/download/${RAYLIB_VERSION}/raylib-${RAYLIB_VERSION}_linux_amd64.tar.gz"
+    )
     set(RAYLIB_LIBRARY_NAME "libraylib.a")
   endif()
 
   set(RAYLIB_INCLUDE_DIR "${RAYLIB_ROOT}/include")
   set(RAYLIB_LIBRARY "${RAYLIB_ROOT}/lib/${RAYLIB_LIBRARY_NAME}")
+
+  if(NOT EXISTS "${RAYLIB_INCLUDE_DIR}/raylib.h" OR NOT EXISTS "${RAYLIB_LIBRARY}")
+    message(STATUS "Could not find local raylib package, downloading ${RAYLIB_PACKAGE_URL}")
+
+    get_filename_component(RAYLIB_PACKAGE_ARCHIVE
+      "${RAYLIB_PACKAGE_URL}"
+      NAME
+    )
+    set(RAYLIB_PACKAGE_ARCHIVE "${CMAKE_BINARY_DIR}/_deps/${RAYLIB_PACKAGE_ARCHIVE}")
+
+    file(MAKE_DIRECTORY "${CMAKE_BINARY_DIR}/_deps")
+    file(DOWNLOAD
+      "${RAYLIB_PACKAGE_URL}"
+      "${RAYLIB_PACKAGE_ARCHIVE}"
+      STATUS RAYLIB_DOWNLOAD_STATUS
+      SHOW_PROGRESS
+    )
+    list(GET RAYLIB_DOWNLOAD_STATUS 0 RAYLIB_DOWNLOAD_CODE)
+    list(GET RAYLIB_DOWNLOAD_STATUS 1 RAYLIB_DOWNLOAD_MESSAGE)
+    if(NOT RAYLIB_DOWNLOAD_CODE EQUAL 0)
+      message(FATAL_ERROR
+        "Failed to download raylib package: ${RAYLIB_DOWNLOAD_MESSAGE}\n"
+        "You can also download it manually and configure with:\n"
+        "  -DRAYLIB_ROOT=/path/to/raylib-${RAYLIB_VERSION}_linux_amd64"
+      )
+    endif()
+
+    file(MAKE_DIRECTORY "${RAYLIB_ROOT}")
+    file(ARCHIVE_EXTRACT
+      INPUT "${RAYLIB_PACKAGE_ARCHIVE}"
+      DESTINATION "${RAYLIB_ROOT}"
+    )
+  endif()
 
   if(NOT EXISTS "${RAYLIB_INCLUDE_DIR}/raylib.h" OR NOT EXISTS "${RAYLIB_LIBRARY}")
     file(GLOB RAYLIB_NESTED_HEADERS
@@ -118,12 +172,8 @@ else()
   elseif(UNIX)
     target_link_libraries(raylib
       INTERFACE
-        X11
-        GL
         m
-        pthread
-        dl
-        rt
+        X11
     )
   endif()
 endif()
