@@ -19,15 +19,132 @@ function(enable_bruecken_warnings target_name)
     endif()
 endfunction()
 
+function(configure_prebuilt_raylib)
+    include(FetchContent)
+
+    set(RAYLIB_VERSION "6.0")
+    set(RAYLIB_PACKAGE_DIR
+        "${CMAKE_BINARY_DIR}/_deps/raylib-${RAYLIB_VERSION}"
+        CACHE PATH "Directory where the prebuilt raylib package is downloaded"
+    )
+
+    if(WIN32)
+        if(MINGW)
+            set(RAYLIB_PACKAGE_URL
+                "https://github.com/raysan5/raylib/releases/download/${RAYLIB_VERSION}/raylib-${RAYLIB_VERSION}_win64_mingw-w64.zip"
+            )
+            set(RAYLIB_LIBRARY "${RAYLIB_PACKAGE_DIR}/lib/libraylib.a")
+        else()
+            set(RAYLIB_PACKAGE_URL
+                "https://github.com/raysan5/raylib/releases/download/${RAYLIB_VERSION}/raylib-${RAYLIB_VERSION}_win64_msvc16.zip"
+            )
+            set(RAYLIB_LIBRARY "${RAYLIB_PACKAGE_DIR}/lib/raylib.lib")
+        endif()
+    elseif(APPLE)
+        set(RAYLIB_PACKAGE_URL
+            "https://github.com/raysan5/raylib/releases/download/${RAYLIB_VERSION}/raylib-${RAYLIB_VERSION}_macos.tar.gz"
+        )
+        set(RAYLIB_LIBRARY "${RAYLIB_PACKAGE_DIR}/lib/libraylib.a")
+    elseif(CMAKE_SYSTEM_NAME STREQUAL "Linux")
+        string(TOLOWER "${CMAKE_SYSTEM_PROCESSOR}" BRUECKEN_SYSTEM_PROCESSOR)
+        if(NOT BRUECKEN_SYSTEM_PROCESSOR MATCHES "^(x86_64|amd64)$")
+            message(FATAL_ERROR
+                "Prebuilt raylib ${RAYLIB_VERSION} is configured for Linux amd64. "
+                "Use -DBRUECKEN_RAYLIB_PROVIDER=bundled or system on this machine."
+            )
+        endif()
+
+        set(RAYLIB_PACKAGE_URL
+            "https://github.com/raysan5/raylib/releases/download/${RAYLIB_VERSION}/raylib-${RAYLIB_VERSION}_linux_amd64.tar.gz"
+        )
+        set(RAYLIB_LIBRARY "${RAYLIB_PACKAGE_DIR}/lib/libraylib.a")
+    else()
+        message(FATAL_ERROR
+            "Unsupported platform for prebuilt raylib. "
+            "Use -DBRUECKEN_RAYLIB_PROVIDER=bundled or system."
+        )
+    endif()
+
+    message(STATUS "Using prebuilt raylib ${RAYLIB_VERSION}: ${RAYLIB_PACKAGE_URL}")
+
+    FetchContent_Declare(
+        raylib_prebuilt
+        URL "${RAYLIB_PACKAGE_URL}"
+        SOURCE_DIR "${RAYLIB_PACKAGE_DIR}"
+        SOURCE_SUBDIR "cmake-do-not-build"
+        DOWNLOAD_EXTRACT_TIMESTAMP TRUE
+    )
+    FetchContent_MakeAvailable(raylib_prebuilt)
+
+    add_library(raylib UNKNOWN IMPORTED GLOBAL)
+    set_target_properties(raylib PROPERTIES
+        IMPORTED_LOCATION "${RAYLIB_LIBRARY}"
+        INTERFACE_INCLUDE_DIRECTORIES "${RAYLIB_PACKAGE_DIR}/include"
+    )
+
+    if(WIN32)
+        target_link_libraries(raylib INTERFACE winmm gdi32 opengl32)
+    elseif(APPLE)
+        find_library(COCOA_LIBRARY Cocoa REQUIRED)
+        find_library(IOKIT_LIBRARY IOKit REQUIRED)
+        find_library(COREVIDEO_LIBRARY CoreVideo REQUIRED)
+        find_library(OPENGL_LIBRARY OpenGL REQUIRED)
+        target_link_libraries(raylib INTERFACE
+            "${COCOA_LIBRARY}"
+            "${IOKIT_LIBRARY}"
+            "${COREVIDEO_LIBRARY}"
+            "${OPENGL_LIBRARY}"
+        )
+    elseif(CMAKE_SYSTEM_NAME STREQUAL "Linux")
+        find_package(OpenGL REQUIRED)
+        find_package(Threads REQUIRED)
+        find_package(X11 REQUIRED)
+        target_link_libraries(raylib INTERFACE
+            OpenGL::GL
+            X11::X11
+            Threads::Threads
+            ${CMAKE_DL_LIBS}
+            m
+            rt
+        )
+    endif()
+endfunction()
+
 # -------------------------------------------------------------------
-# Bundled libraries
+# Libraries
 # -------------------------------------------------------------------
 add_subdirectory(lib/preset)
 
-set(BUILD_EXAMPLES OFF CACHE BOOL "" FORCE)
-set(BUILD_GAMES OFF CACHE BOOL "" FORCE)
-set(BUILD_SHARED_LIBS OFF CACHE BOOL "" FORCE)
-add_subdirectory(lib/raylib/raylib-6.0)
+set(BRUECKEN_RAYLIB_PROVIDER "prebuilt" CACHE STRING
+    "raylib provider: prebuilt, bundled, or system"
+)
+set_property(CACHE BRUECKEN_RAYLIB_PROVIDER PROPERTY STRINGS
+    prebuilt
+    bundled
+    system
+)
+
+if(BRUECKEN_RAYLIB_PROVIDER STREQUAL "prebuilt")
+    configure_prebuilt_raylib()
+elseif(BRUECKEN_RAYLIB_PROVIDER STREQUAL "bundled")
+    set(BUILD_EXAMPLES OFF CACHE BOOL "" FORCE)
+    set(BUILD_GAMES OFF CACHE BOOL "" FORCE)
+    set(BUILD_SHARED_LIBS OFF CACHE BOOL "" FORCE)
+    add_subdirectory(lib/raylib/raylib-6.0)
+elseif(BRUECKEN_RAYLIB_PROVIDER STREQUAL "system")
+    find_package(raylib 6.0 REQUIRED)
+    if(NOT TARGET raylib AND TARGET raylib::raylib)
+        add_library(raylib ALIAS raylib::raylib)
+    endif()
+    if(NOT TARGET raylib)
+        message(FATAL_ERROR "raylib package was found, but no raylib target is available")
+    endif()
+else()
+    message(FATAL_ERROR
+        "Unknown BRUECKEN_RAYLIB_PROVIDER='${BRUECKEN_RAYLIB_PROVIDER}'. "
+        "Use prebuilt, bundled, or system."
+    )
+endif()
 
 # -------------------------------------------------------------------
 # Project library shared by executable and tests
