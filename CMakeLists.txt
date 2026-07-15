@@ -20,8 +20,6 @@ function(enable_bruecken_warnings target_name)
 endfunction()
 
 function(configure_prebuilt_raylib)
-    include(FetchContent)
-
     set(RAYLIB_VERSION "6.0")
     set(RAYLIB_PACKAGE_DIR
         "${CMAKE_BINARY_DIR}/_deps/raylib-${RAYLIB_VERSION}"
@@ -65,21 +63,64 @@ function(configure_prebuilt_raylib)
         )
     endif()
 
-    message(STATUS "Using prebuilt raylib ${RAYLIB_VERSION}: ${RAYLIB_PACKAGE_URL}")
+    set(RAYLIB_INCLUDE_DIR "${RAYLIB_PACKAGE_DIR}/include")
 
-    FetchContent_Declare(
-        raylib_prebuilt
-        URL "${RAYLIB_PACKAGE_URL}"
-        SOURCE_DIR "${RAYLIB_PACKAGE_DIR}"
-        SOURCE_SUBDIR "cmake-do-not-build"
-        DOWNLOAD_EXTRACT_TIMESTAMP TRUE
-    )
-    FetchContent_MakeAvailable(raylib_prebuilt)
+    if(EXISTS "${RAYLIB_INCLUDE_DIR}/raylib.h" AND EXISTS "${RAYLIB_LIBRARY}")
+        message(STATUS "Using local prebuilt raylib ${RAYLIB_VERSION}: ${RAYLIB_PACKAGE_DIR}")
+    elseif(EXISTS "${RAYLIB_PACKAGE_DIR}")
+        message(FATAL_ERROR
+            "RAYLIB_PACKAGE_DIR exists but does not look like a raylib prebuilt package: "
+            "${RAYLIB_PACKAGE_DIR}\n"
+            "Expected files:\n"
+            "  ${RAYLIB_INCLUDE_DIR}/raylib.h\n"
+            "  ${RAYLIB_LIBRARY}"
+        )
+    else()
+        message(STATUS "Downloading prebuilt raylib ${RAYLIB_VERSION}: ${RAYLIB_PACKAGE_URL}")
+
+        get_filename_component(RAYLIB_PACKAGE_ARCHIVE
+            "${RAYLIB_PACKAGE_URL}"
+            NAME
+        )
+        set(RAYLIB_PACKAGE_ARCHIVE
+            "${CMAKE_BINARY_DIR}/_deps/${RAYLIB_PACKAGE_ARCHIVE}"
+        )
+
+        file(DOWNLOAD
+            "${RAYLIB_PACKAGE_URL}"
+            "${RAYLIB_PACKAGE_ARCHIVE}"
+            STATUS RAYLIB_DOWNLOAD_STATUS
+            SHOW_PROGRESS
+        )
+        list(GET RAYLIB_DOWNLOAD_STATUS 0 RAYLIB_DOWNLOAD_CODE)
+        list(GET RAYLIB_DOWNLOAD_STATUS 1 RAYLIB_DOWNLOAD_MESSAGE)
+        if(NOT RAYLIB_DOWNLOAD_CODE EQUAL 0)
+            message(FATAL_ERROR
+                "Failed to download raylib prebuilt package: "
+                "${RAYLIB_DOWNLOAD_MESSAGE}"
+            )
+        endif()
+
+        file(MAKE_DIRECTORY "${RAYLIB_PACKAGE_DIR}")
+        file(ARCHIVE_EXTRACT
+            INPUT "${RAYLIB_PACKAGE_ARCHIVE}"
+            DESTINATION "${RAYLIB_PACKAGE_DIR}"
+        )
+    endif()
+
+    if(NOT EXISTS "${RAYLIB_INCLUDE_DIR}/raylib.h" OR NOT EXISTS "${RAYLIB_LIBRARY}")
+        message(FATAL_ERROR
+            "raylib prebuilt package is incomplete after setup.\n"
+            "Expected files:\n"
+            "  ${RAYLIB_INCLUDE_DIR}/raylib.h\n"
+            "  ${RAYLIB_LIBRARY}"
+        )
+    endif()
 
     add_library(raylib UNKNOWN IMPORTED GLOBAL)
     set_target_properties(raylib PROPERTIES
         IMPORTED_LOCATION "${RAYLIB_LIBRARY}"
-        INTERFACE_INCLUDE_DIRECTORIES "${RAYLIB_PACKAGE_DIR}/include"
+        INTERFACE_INCLUDE_DIRECTORIES "${RAYLIB_INCLUDE_DIR}"
     )
 
     if(WIN32)
