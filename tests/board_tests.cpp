@@ -90,26 +90,77 @@ void test_invalid_player_id_is_rejected() {
                    "applying player id 3 should throw");
 }
 
-void test_crossing_bridge_is_not_created() {
-    bruecken::Board board(6, 6);
+void test_unrotated_corner_areas_are_not_playable() {
+    bruecken::Board board(5, 5);
 
-    play(board, 1, 0, 1);
-    play(board, 0, 2, 2);
-    play(board, 2, 2, 1);
+    const std::vector<bruecken::Position> corner_positions = {
+        {0, 0}, {1, 0}, {0, 1}, {1, 1},
+        {3, 0}, {4, 0}, {3, 1}, {4, 1},
+        {0, 3}, {1, 3}, {0, 4}, {1, 4},
+        {3, 3}, {4, 3}, {3, 4}, {4, 4},
+    };
+
+    for (const bruecken::Position& pos : corner_positions) {
+        require(!board.is_playable(pos, 0),
+                "Corner areas must not be playable by player 1");
+        require(!board.is_playable(pos, 1),
+                "Corner areas must not be playable by player 2");
+    }
+
+    require(board.get_direction({2, 0}) == bruecken::Direction::kTop,
+            "The top edge strip must still belong to player 1");
+    require(board.get_direction({2, 1}) == bruecken::Direction::kTop,
+            "The inner top edge line belongs to the top boundary strip");
+    require(board.get_direction({0, 2}) == bruecken::Direction::kLeft,
+            "The left edge strip must still belong to player 2");
+    require(board.get_direction({1, 2}) == bruecken::Direction::kLeft,
+            "The inner left edge line belongs to the left boundary strip");
+
+    require(board.is_playable({2, 0}, 0),
+            "Player 1 must be allowed to play on the top boundary");
+    require(!board.is_playable({2, 0}, 1),
+            "Player 2 must not play on player 1's top boundary");
+    require(board.is_playable({0, 2}, 1),
+            "Player 2 must be allowed to play on the left boundary");
+    require(!board.is_playable({0, 2}, 0),
+            "Player 1 must not play on player 2's left boundary");
+}
+
+void test_rotation_scales_board_inside_fixed_grid() {
+    bruecken::Board board(15, 15, 30.0);
+
+    require(!board.is_in_bounds({0, 0}),
+            "A fixed-grid outer corner can be outside the rotated board");
+    require(!board.is_playable({0, 0}, 0),
+            "A point outside the rotated board must not be playable");
+    require(board.is_in_bounds({7, 7}),
+            "The fixed-grid center must remain inside the rotated board");
+    require(board.is_playable({7, 7}, 0),
+            "A neutral center point must be playable by player 1");
+    require(board.is_playable({7, 7}, 1),
+            "A neutral center point must be playable by player 2");
+}
+
+void test_crossing_bridge_is_not_created() {
+    bruecken::Board board(7, 7);
+
+    play(board, 2, 1, 1);
+    play(board, 2, 2, 2);
+    play(board, 3, 3, 1);
     require(board.get_bridges().size() == 1,
             "first knight connection should create one bridge");
 
-    play(board, 2, 1, 2);
+    play(board, 4, 3, 2);
     require(board.get_bridges().size() == 1,
             "crossing bridge should not be created");
 }
 
 void test_shared_endpoint_is_not_a_crossing() {
-    bruecken::Board board(6, 6);
+    bruecken::Board board(7, 7);
 
-    play(board, 1, 0, 1);
-    play(board, 0, 1, 2);
-    play(board, 2, 2, 1);
+    play(board, 2, 1, 1);
+    play(board, 0, 2, 2);
+    play(board, 3, 3, 1);
     play(board, 0, 3, 2);
     play(board, 4, 1, 1);
 
@@ -118,29 +169,30 @@ void test_shared_endpoint_is_not_a_crossing() {
 }
 
 void test_non_crossing_bridge_is_created() {
-    bruecken::Board board(6, 6);
+    bruecken::Board board(7, 7);
 
-    play(board, 1, 0, 1);
-    play(board, 0, 1, 2);
-    play(board, 4, 4, 1);
-    play(board, 2, 2, 2);
+    play(board, 2, 1, 1);
+    play(board, 0, 2, 2);
+    play(board, 4, 1, 1);
+    play(board, 2, 3, 2);
     require(board.get_bridges().size() == 1,
             "first player 2 bridge should be created");
 
-    play(board, 3, 0, 1);
-    play(board, 4, 1, 2);
-    require(board.get_bridges().size() == 2,
-            "non-crossing bridge should be created");
+    play(board, 3, 3, 1);
+    require(board.get_bridges().size() == 3,
+            "non-crossing bridges should be created");
 }
 
 void test_finished_board_rejects_more_moves() {
-    bruecken::Board board(5, 5);
+    bruecken::Board board(7, 7);
 
-    play(board, 1, 0, 1);
-    play(board, 4, 1, 2);
-    play(board, 2, 2, 1);
-    play(board, 4, 3, 2);
-    play(board, 1, 4, 1);
+    play(board, 2, 0, 1);
+    play(board, 6, 2, 2);
+    play(board, 3, 2, 1);
+    play(board, 6, 4, 2);
+    play(board, 4, 4, 1);
+    play(board, 0, 2, 2);
+    play(board, 3, 6, 1);
 
     require(board.get_phase() == bruecken::GamePhase::kFinished,
             "the prepared position should finish the game");
@@ -156,6 +208,8 @@ int main() {
     const std::vector<void (*)()> tests = {
         test_board_boundary_values,
         test_invalid_player_id_is_rejected,
+        test_unrotated_corner_areas_are_not_playable,
+        test_rotation_scales_board_inside_fixed_grid,
         test_crossing_bridge_is_not_created,
         test_shared_endpoint_is_not_a_crossing,
         test_non_crossing_bridge_is_created,

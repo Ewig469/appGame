@@ -6,6 +6,7 @@
 
 #pragma once
 
+#include <array>
 #include <cstdint>
 #include <vector>
 
@@ -20,9 +21,9 @@ namespace bruecken {
  *        and bridge generation.
  *
  * All game-rule validation logic lives in this class.
- * Rule-related coordinate logic operates on the logical NxM grid.
- * Rotation is calculated from the formula in the game rules and used by the
- * GUI as an affine representation of this logical grid.
+ * Rule-related coordinates are fixed integer positions in the NxM coordinate
+ * frame. Rotation defines which of those fixed positions are inside the
+ * rotated play field and which boundary area they belong to.
  */
 class Board {
 public:
@@ -58,15 +59,15 @@ public:
     // Coordinates / Area ownership
     // =================================================================
 
-    /** Is the position inside the valid NxM grid? */
+    /** Is the position inside the rotated board area within the NxM frame? */
     bool is_in_bounds(const Position& pos) const;
 
     /**
      * @brief Returns which boundary area this position belongs to.
      *
-     *  - Inner (N-2)x(M-2) area -> kNone (neutral, both players may place)
-     *  - Outer edge strips -> kTop/kBottom (player 1) / kLeft/kRight (player 2)
-     *  - Four corners -> kNone (overlap, nobody)
+     *  - Rotated inner (N-2)x(M-2) area -> kNone
+     *  - Rotated boundary strips -> kTop/kBottom/kLeft/kRight
+     *  - Overlapping corner strips -> kNone
      */
     Direction get_direction(const Position& pos) const;
 
@@ -117,6 +118,13 @@ private:
 
     enum class Cell : uint8_t { kEmpty, kPegP1, kPegP2 };
 
+    struct BoardPoint {
+        double x = 0.0;
+        double y = 0.0;
+    };
+
+    using BoardPolygon = std::array<BoardPoint, 4>;
+
     // =================================================================
     // Helper functions
     // =================================================================
@@ -124,9 +132,15 @@ private:
     /** Knight-move offsets (8 possible neighboring positions). */
     static std::vector<Position> knight_offsets();
 
-    /** Returns all knight-move positions that are inside the grid. */
+    /** Returns all knight-move positions that are inside the rotated board. */
     std::vector<Position> knight_neighbors(const Position& pos) const;
 
+    bool is_grid_coordinate(const Position& pos) const;
+    BoardPolygon rotated_polygon(double inset) const;
+    bool point_in_polygon(const Position& pos, const BoardPolygon& polygon) const;
+    std::array<double, 4> side_values(
+        const Position& pos,
+        const BoardPolygon& polygon) const;
     bool is_corner(const Position& pos) const;
 
     /**

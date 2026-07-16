@@ -21,6 +21,17 @@ namespace bruecken {
 namespace {
 
 constexpr double kPi = 3.14159265358979323846;
+constexpr double kGeometryEpsilon = 1.0e-9;
+
+Direction side_to_direction(int side) {
+    switch (side) {
+        case 0: return Direction::kTop;
+        case 1: return Direction::kRight;
+        case 2: return Direction::kBottom;
+        case 3: return Direction::kLeft;
+        default: return Direction::kNone;
+    }
+}
 
 }  // namespace
 
@@ -66,40 +77,48 @@ double Board::get_rotation_fraction() const {
 // =====================================================================
 
 bool Board::is_in_bounds(const Position& pos) const {
-    return pos.x >= 0 && pos.x < width_ &&
-           pos.y >= 0 && pos.y < height_;
+    return is_grid_coordinate(pos) &&
+           point_in_polygon(pos, rotated_polygon(0.0));
 }
 
 bool Board::is_corner(const Position& pos) const {
-    return (pos.x == 0 && pos.y == 0) ||
-           (pos.x == 0 && pos.y == height_ - 1) ||
-           (pos.x == width_ - 1 && pos.y == 0) ||
-           (pos.x == width_ - 1 && pos.y == height_ - 1);
+    if (!is_in_bounds(pos)) return false;
+
+    const auto sides = side_values(pos, rotated_polygon(1.0));
+    int boundary_count = 0;
+    for (const double value : sides) {
+        if (value <= kGeometryEpsilon) {
+            ++boundary_count;
+        }
+    }
+    return boundary_count >= 2;
 }
 
 Direction Board::get_direction(const Position& pos) const {
     if (!is_in_bounds(pos)) return Direction::kNone;
 
-    // Corners overlap and belong to nobody
     if (is_corner(pos)) return Direction::kNone;
 
-    // Top edge (row 0)
-    if (pos.y == 0) return Direction::kTop;
-    // Bottom edge (row height-1)
-    if (pos.y == height_ - 1) return Direction::kBottom;
-    // Left edge (column 0)
-    if (pos.x == 0) return Direction::kLeft;
-    // Right edge (column width-1)
-    if (pos.x == width_ - 1) return Direction::kRight;
+    const auto sides = side_values(pos, rotated_polygon(1.0));
+    int boundary_side = -1;
+    int boundary_count = 0;
 
-    // Inner (N-2)x(M-2) area is neutral
+    for (int side = 0; side < static_cast<int>(sides.size()); ++side) {
+        if (sides[side] <= kGeometryEpsilon) {
+            boundary_side = side;
+            ++boundary_count;
+        }
+    }
+
+    if (boundary_count == 1) {
+        return side_to_direction(boundary_side);
+    }
     return Direction::kNone;
 }
 
 bool Board::is_playable(const Position& pos, int player_id) const {
     if (!is_in_bounds(pos)) return false;
 
-    // Corners may not be played by anyone
     if (is_corner(pos)) return false;
 
     Direction dir = get_direction(pos);
@@ -117,8 +136,61 @@ bool Board::is_playable(const Position& pos, int player_id) const {
 }
 
 bool Board::is_occupied(const Position& pos) const {
-    if (!is_in_bounds(pos)) return false;
+    if (!is_grid_coordinate(pos)) return false;
     return grid_[pos.y][pos.x] != Cell::kEmpty;
+}
+
+bool Board::is_grid_coordinate(const Position& pos) const {
+    return pos.x >= 0 && pos.x < width_ &&
+           pos.y >= 0 && pos.y < height_;
+}
+
+Board::BoardPolygon Board::rotated_polygon(double inset) const {
+    const double fraction = get_rotation_fraction();
+    const double left = inset;
+    const double top = inset;
+    const double right = static_cast<double>(width_ - 1) - inset;
+    const double bottom = static_cast<double>(height_ - 1) - inset;
+    const double rect_width = std::max(0.0, right - left);
+    const double rect_height = std::max(0.0, bottom - top);
+
+    return BoardPolygon{
+        BoardPoint{left + fraction * rect_width, top},
+        BoardPoint{right, top + fraction * rect_height},
+        BoardPoint{right - fraction * rect_width, bottom},
+        BoardPoint{left, bottom - fraction * rect_height}
+    };
+}
+
+bool Board::point_in_polygon(
+    const Position& pos,
+    const BoardPolygon& polygon) const {
+
+    const auto sides = side_values(pos, polygon);
+    return std::all_of(
+        sides.begin(),
+        sides.end(),
+        [](double value) { return value >= -kGeometryEpsilon; });
+}
+
+std::array<double, 4> Board::side_values(
+    const Position& pos,
+    const BoardPolygon& polygon) const {
+
+    const BoardPoint point{
+        static_cast<double>(pos.x),
+        static_cast<double>(pos.y)};
+    auto cross = [](const BoardPoint& a, const BoardPoint& b, const BoardPoint& p) {
+        return (b.x - a.x) * (p.y - a.y) -
+               (b.y - a.y) * (p.x - a.x);
+    };
+
+    return {
+        cross(polygon[0], polygon[1], point),
+        cross(polygon[1], polygon[2], point),
+        cross(polygon[2], polygon[3], point),
+        cross(polygon[3], polygon[0], point)
+    };
 }
 
 // =====================================================================
@@ -411,6 +483,22 @@ bool Board::has_potential_connection(int player_id) const {
 
 bool Board::check_draw() const {
     if (check_win(0) || check_win(1)) return false;
+
+    auto has_legal_position = [&](int player_id) {
+        for (int y = 0; y < height_; ++y) {
+            for (int x = 0; x < width_; ++x) {
+                const Position pos{x, y};
+                if (is_playable(pos, player_id) &&
+                    grid_[y][x] == Cell::kEmpty) {
+                    return true;
+                }
+            }
+        }
+        return false;
+    };
+
+    const int next_player = (turn_ + 1) % kNumPlayers;
+    if (!has_legal_position(next_player)) return true;
 
     return !has_potential_connection(0) && !has_potential_connection(1);
 }

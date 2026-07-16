@@ -172,7 +172,7 @@ namespace
                           { player_two.request(); },
                           "HumanPlayer must throw for illegal GUI input");
 
-        gui_two.provide(preset::Move(1, 1, 2));
+        gui_two.provide(preset::Move(0, 3, 2));
         const auto second_move = player_two.request();
         require(second_move.has_value(),
                 "HumanPlayer 2 must accept legal GUI input");
@@ -189,27 +189,37 @@ namespace
         player_two.init(config, 2);
 
         // Player 1 forms a top-to-bottom chain with two knight-move bridges.
-        gui_one.provide(preset::Move(1, 0, 1));
+        gui_one.provide(preset::Move(2, 0, 1));
         const auto p1_first = player_one.request();
         require(p1_first.has_value(), "Player 1 opening move was not returned");
         player_two.update(*p1_first);
 
-        gui_two.provide(preset::Move(4, 1, 2));
+        gui_two.provide(preset::Move(6, 2, 2));
         const auto p2_first = player_two.request();
         require(p2_first.has_value(), "Player 2 first move was not returned");
         player_one.update(*p2_first);
 
-        gui_one.provide(preset::Move(2, 2, 1));
+        gui_one.provide(preset::Move(3, 2, 1));
         const auto p1_second = player_one.request();
         require(p1_second.has_value(), "Player 1 second move was not returned");
         player_two.update(*p1_second);
 
-        gui_two.provide(preset::Move(4, 3, 2));
+        gui_two.provide(preset::Move(6, 4, 2));
         const auto p2_second = player_two.request();
         require(p2_second.has_value(), "Player 2 second move was not returned");
         player_one.update(*p2_second);
 
-        gui_one.provide(preset::Move(1, 4, 1));
+        gui_one.provide(preset::Move(4, 4, 1));
+        const auto p1_third = player_one.request();
+        require(p1_third.has_value(), "Player 1 third move was not returned");
+        player_two.update(*p1_third);
+
+        gui_two.provide(preset::Move(0, 2, 2));
+        const auto p2_third = player_two.request();
+        require(p2_third.has_value(), "Player 2 third move was not returned");
+        player_one.update(*p2_third);
+
+        gui_one.provide(preset::Move(3, 6, 1));
         const auto winning_move = player_one.request();
         require(winning_move.has_value(), "Winning move was not returned");
         player_two.update(*winning_move);
@@ -371,8 +381,8 @@ int main()
     try
     {
         preset::BoardConfig config;
-        config.width = 5;
-        config.height = 5;
+        config.width = 7;
+        config.height = 7;
         config.rotation = 0;
 
         test_initialization_contract(config);

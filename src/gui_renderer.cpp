@@ -36,6 +36,7 @@ constexpr Color kBoardBackground{255, 255, 255, 255};
 constexpr Color kGridColor{148, 163, 184, 130};
 constexpr Color kTextColor{30, 41, 59, 255};
 constexpr Color kSecondaryText{100, 116, 139, 255};
+constexpr Color kFixedPointColor{100, 116, 139, 95};
 constexpr Color kPointColor{100, 116, 139, 255};
 constexpr Color kWinningColor{250, 204, 21, 255};
 
@@ -90,7 +91,7 @@ Color parse_color(const std::string& text, Color fallback) {
 }
 
 /**
- * @brief Calculates the rotated board geometry.
+ * @brief Calculates the fixed grid and rotated board geometry.
  * @param board Board whose dimensions and rotation define the geometry.
  * @return Corner points, grid steps, and center in screen coordinates.
  *
@@ -107,7 +108,7 @@ BoardGeometry make_geometry(const Board& board) {
 }
 
 /**
- * @brief Maps an integer board coordinate to a screen-space point.
+ * @brief Maps an integer fixed-grid coordinate to a screen-space point.
  * @par Primary contributor
  * Hao Guo (board rendering).
  */
@@ -123,8 +124,8 @@ Vector2 board_to_screen(
  * @brief Finds the grid point nearest to the mouse cursor.
  * @return The clicked board position, or std::nullopt when no point is close.
  *
- * This is simpler than calculating an inverse transformation and still
- * works with rotated boards.
+ * This checks visible fixed-grid points that are still inside the rotated
+ * board area.
  *
  * @par Primary contributor
  * Junke Pu (mouse interaction and move placement).
@@ -141,13 +142,15 @@ std::optional<Position> find_clicked_position(
 }
 
 /**
- * @brief Checks whether a coordinate is one of the four unplayable corners.
+ * @brief Checks whether a coordinate is an unplayable overlapping corner area.
  * @par Primary contributor
  * Hao Guo (board rendering).
  */
 bool is_corner(const Board& board, int x, int y) {
-    return (x == 0 || x == board.get_width() - 1) &&
-           (y == 0 || y == board.get_height() - 1);
+    const Position position{x, y};
+    return board.is_in_bounds(position) &&
+           !board.is_playable(position, 0) &&
+           !board.is_playable(position, 1);
 }
 
 /** @brief Draws text centered around the supplied screen position. */
@@ -395,7 +398,7 @@ void GuiRenderer::draw_frame() {
         to_vector(geometry.bottom_left),
         kBoardBackground);
 
-    // Hao Guo: render the board grid.
+    // Hao Guo: render the fixed coordinate grid.
     for (int x = 0; x < board_.get_width(); ++x) {
         DrawLineEx(
             board_to_screen(geometry, x, 0),
@@ -416,6 +419,19 @@ void GuiRenderer::draw_frame() {
                 y),
             1.0F,
             kGridColor);
+    }
+
+    // Hao Guo: render the complete fixed coordinate point lattice. Rotation
+    // changes the scaled board boundary, not the X/Y coordinate spacing.
+    const float fixed_point_radius =
+        std::clamp(step * 0.045F, 0.7F, 1.8F);
+    for (int y = 0; y < board_.get_height(); ++y) {
+        for (int x = 0; x < board_.get_width(); ++x) {
+            DrawCircleV(
+                board_to_screen(geometry, x, y),
+                fixed_point_radius,
+                kFixedPointColor);
+        }
     }
 
     // Hao Guo: render the goal edges. Player 1 owns top/bottom; player 2
@@ -444,12 +460,17 @@ void GuiRenderer::draw_frame() {
         6.0F,
         colors[1]);
 
-    // Hao Guo: render playable board points and mark unplayable corners.
+    // Hao Guo: render valid board points and mark overlapping corner areas.
     const float point_radius =
         std::clamp(step * 0.065F, 0.9F, 2.2F);
 
     for (int y = 0; y < board_.get_height(); ++y) {
         for (int x = 0; x < board_.get_width(); ++x) {
+            const Position position{x, y};
+            if (!board_.is_in_bounds(position)) {
+                continue;
+            }
+
             const Vector2 point =
                 board_to_screen(geometry, x, y);
 

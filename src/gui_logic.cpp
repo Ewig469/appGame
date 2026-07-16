@@ -42,32 +42,45 @@ GuiBoardGeometry calculate_board_geometry(
         throw std::invalid_argument("Screen dimensions must be positive");
     }
 
-    const float left = std::max(54.0F, screen_width * 0.075F);
-    const float right = screen_width - left;
-    const float top = std::max(116.0F, screen_height * 0.16F);
-    const float bottom =
+    const float available_left = std::max(54.0F, screen_width * 0.075F);
+    const float available_right = screen_width - available_left;
+    const float available_top = std::max(116.0F, screen_height * 0.16F);
+    const float available_bottom =
         screen_height - std::max(52.0F, screen_height * 0.07F);
     const float fraction =
         static_cast<float>(board.get_rotation_fraction());
 
-    const float width = right - left;
-    const float height = bottom - top;
+    const float available_width = available_right - available_left;
+    const float available_height = available_bottom - available_top;
+    const float unit = std::min(
+        available_width / static_cast<float>(board.get_width() - 1),
+        available_height / static_cast<float>(board.get_height() - 1));
+    const float width = unit * static_cast<float>(board.get_width() - 1);
+    const float height = unit * static_cast<float>(board.get_height() - 1);
+    const float left = available_left + (available_width - width) * 0.5F;
+    const float top = available_top + (available_height - height) * 0.5F;
+    const float right = left + width;
+    const float bottom = top + height;
 
     GuiBoardGeometry result{};
+    result.grid_top_left = {left, top};
+    result.grid_top_right = {right, top};
+    result.grid_bottom_right = {right, bottom};
+    result.grid_bottom_left = {left, bottom};
     result.top_left = {left + fraction * width, top};
     result.top_right = {right, top + fraction * height};
     result.bottom_right = {right - fraction * width, bottom};
     result.bottom_left = {left, bottom - fraction * height};
     result.x_step = scale(
-        subtract(result.top_right, result.top_left),
+        subtract(result.grid_top_right, result.grid_top_left),
         1.0F / static_cast<float>(board.get_width() - 1));
     result.y_step = scale(
-        subtract(result.bottom_left, result.top_left),
+        subtract(result.grid_bottom_left, result.grid_top_left),
         1.0F / static_cast<float>(board.get_height() - 1));
     result.center = scale(
         add(
-            add(result.top_left, result.top_right),
-            add(result.bottom_left, result.bottom_right)),
+            add(result.grid_top_left, result.grid_top_right),
+            add(result.grid_bottom_left, result.grid_bottom_right)),
         0.25F);
     return result;
 }
@@ -78,7 +91,7 @@ GuiPoint board_coordinate_to_screen(
     int y) {
 
     return add(
-        geometry.top_left,
+        geometry.grid_top_left,
         add(
             scale(geometry.x_step, static_cast<float>(x)),
             scale(geometry.y_step, static_cast<float>(y))));
@@ -98,6 +111,8 @@ std::optional<Position> find_nearest_board_position(
 
     for (int y = 0; y < board.get_height(); ++y) {
         for (int x = 0; x < board.get_width(); ++x) {
+            if (!board.is_in_bounds(Position{x, y})) continue;
+
             const GuiPoint point =
                 board_coordinate_to_screen(geometry, x, y);
             const float dx = mouse.x - point.x;

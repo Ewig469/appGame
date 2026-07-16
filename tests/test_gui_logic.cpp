@@ -70,6 +70,38 @@ void test_rotation_geometry() {
     require(near(diagonal.top_right.y, diagonal.center.y),
             "At 45 degrees the right corner must be vertically centered");
 
+    const auto fixed_zero = bruecken::board_coordinate_to_screen(
+        zero,
+        6,
+        8);
+    const auto fixed_diagonal = bruecken::board_coordinate_to_screen(
+        diagonal,
+        6,
+        8);
+    require(near(fixed_zero.x, fixed_diagonal.x) &&
+            near(fixed_zero.y, fixed_diagonal.y),
+            "Rotation must not move fixed X/Y coordinate points");
+
+    const bruecken::Board rectangular_board(15, 10, 0.0);
+    const auto rectangular =
+        bruecken::calculate_board_geometry(rectangular_board, width, height);
+    const float x_spacing =
+        std::hypot(rectangular.x_step.x, rectangular.x_step.y);
+    const float y_spacing =
+        std::hypot(rectangular.y_step.x, rectangular.y_step.y);
+    require(near(x_spacing, y_spacing),
+            "Non-square boards must keep equal X/Y coordinate spacing");
+    const float rectangular_width =
+        std::hypot(
+            rectangular.grid_top_right.x - rectangular.grid_top_left.x,
+            rectangular.grid_top_right.y - rectangular.grid_top_left.y);
+    const float rectangular_height =
+        std::hypot(
+            rectangular.grid_bottom_left.x - rectangular.grid_top_left.x,
+            rectangular.grid_bottom_left.y - rectangular.grid_top_left.y);
+    require(rectangular_width > rectangular_height,
+            "A 15 x 10 board must be drawn as a rectangle, not a square");
+
     const bruecken::Board board_ninety(12, 16, 90.0);
     const auto ninety =
         bruecken::calculate_board_geometry(board_ninety, width, height);
@@ -102,7 +134,7 @@ void test_large_board_coordinates() {
             "Large-board Y labels must include both endpoints");
 
     const std::vector<bruecken::Position> samples = {
-        {0, 0}, {95, 0}, {0, 95}, {95, 95}, {47, 63}, {80, 12}};
+        {47, 47}, {47, 63}, {60, 47}, {35, 47}, {80, 45}};
     for (const auto& expected : samples) {
         const auto screen = bruecken::board_coordinate_to_screen(
             geometry,
@@ -116,6 +148,18 @@ void test_large_board_coordinates() {
                 "Every sampled 96 x 96 coordinate must be discoverable");
     }
 
+    const auto outside_corner = bruecken::board_coordinate_to_screen(
+        geometry,
+        0,
+        0);
+    require(
+        !bruecken::find_nearest_board_position(
+             geometry,
+             board,
+             outside_corner)
+             .has_value(),
+        "A fixed-grid point outside the rotated board must not be selected");
+
     require(
         !bruecken::find_nearest_board_position(
              geometry,
@@ -126,7 +170,7 @@ void test_large_board_coordinates() {
 }
 
 void test_click_to_move_mapping() {
-    bruecken::Board board(5, 5);
+    bruecken::Board board(7, 7);
     require(
         !bruecken::move_for_board_position(
              board,
@@ -136,44 +180,46 @@ void test_click_to_move_mapping() {
 
     const auto first_move = bruecken::move_for_board_position(
         board,
-        bruecken::Position{2, 2});
+        bruecken::Position{3, 3});
     require(first_move.has_value() && first_move->get_id() == 1,
             "A valid first click must create a Player 1 move");
     board.apply_move(*first_move);
 
     const auto second_move = bruecken::move_for_board_position(
         board,
-        bruecken::Position{1, 1});
+        bruecken::Position{0, 3});
     require(second_move.has_value() && second_move->get_id() == 2,
             "The next valid click must create a Player 2 move");
     require(
         !bruecken::move_for_board_position(
              board,
-             bruecken::Position{2, 2})
+             bruecken::Position{3, 3})
              .has_value(),
         "An occupied coordinate must not become a GUI move");
 }
 
 void test_player_one_status_and_winning_path() {
-    bruecken::Board board(5, 5);
+    bruecken::Board board(7, 7);
     const std::vector<std::string> names = {"Alice", "Bob"};
     require(bruecken::game_status_text(board, names) == "Alice to move",
             "Initial status must name Player 1");
 
-    board.apply_move(preset::Move(1, 0, 1));
+    board.apply_move(preset::Move(2, 0, 1));
     require(bruecken::game_status_text(board, names) == "Bob to move",
             "Status must change after Player 1 moves");
-    board.apply_move(preset::Move(4, 1, 2));
-    board.apply_move(preset::Move(2, 2, 1));
-    board.apply_move(preset::Move(4, 3, 2));
-    board.apply_move(preset::Move(1, 4, 1));
+    board.apply_move(preset::Move(6, 2, 2));
+    board.apply_move(preset::Move(3, 2, 1));
+    board.apply_move(preset::Move(6, 4, 2));
+    board.apply_move(preset::Move(4, 4, 1));
+    board.apply_move(preset::Move(0, 2, 2));
+    board.apply_move(preset::Move(3, 6, 1));
 
     require(board.check_win(0), "Player 1 must have a winning connection");
     require(bruecken::game_status_text(board, names) == "Alice wins!",
             "Winning status must name Player 1");
     const auto path = bruecken::calculate_winning_path(board, 0);
-    require(path.size() == 3,
-            "Player 1 winning path must contain the three connected pegs");
+    require(path.size() == 4,
+            "Player 1 winning path must contain the connected pegs");
     require(board.get_direction(path.front()) == bruecken::Direction::kTop,
             "Player 1 path must start at the top edge");
     require(board.get_direction(path.back()) == bruecken::Direction::kBottom,
@@ -181,18 +227,20 @@ void test_player_one_status_and_winning_path() {
 }
 
 void test_player_two_winning_path() {
-    bruecken::Board board(5, 5);
-    board.apply_move(preset::Move(1, 0, 1));
-    board.apply_move(preset::Move(0, 1, 2));
-    board.apply_move(preset::Move(3, 0, 1));
-    board.apply_move(preset::Move(2, 2, 2));
-    board.apply_move(preset::Move(1, 4, 1));
-    board.apply_move(preset::Move(4, 1, 2));
+    bruecken::Board board(7, 7);
+    board.apply_move(preset::Move(2, 0, 1));
+    board.apply_move(preset::Move(0, 2, 2));
+    board.apply_move(preset::Move(4, 0, 1));
+    board.apply_move(preset::Move(2, 3, 2));
+    board.apply_move(preset::Move(2, 6, 1));
+    board.apply_move(preset::Move(4, 4, 2));
+    board.apply_move(preset::Move(4, 6, 1));
+    board.apply_move(preset::Move(6, 3, 2));
 
     require(board.check_win(1), "Player 2 must have a winning connection");
     const auto path = bruecken::calculate_winning_path(board, 1);
-    require(path.size() == 3,
-            "Player 2 winning path must contain the three connected pegs");
+    require(path.size() == 4,
+            "Player 2 winning path must contain the connected pegs");
     require(board.get_direction(path.front()) == bruecken::Direction::kLeft,
             "Player 2 path must start at the left edge");
     require(board.get_direction(path.back()) == bruecken::Direction::kRight,

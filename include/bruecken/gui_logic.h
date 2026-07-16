@@ -22,8 +22,12 @@ struct GuiPoint {
     float y = 0.0F;
 };
 
-/** Complete screen-space geometry of a possibly rotated board. */
+/** Complete screen-space geometry of a rotated board in a fixed grid frame. */
 struct GuiBoardGeometry {
+    GuiPoint grid_top_left;
+    GuiPoint grid_top_right;
+    GuiPoint grid_bottom_left;
+    GuiPoint grid_bottom_right;
     GuiPoint top_left;
     GuiPoint top_right;
     GuiPoint bottom_left;
@@ -34,7 +38,7 @@ struct GuiBoardGeometry {
 };
 
 /**
- * Calculate board corners and grid steps according to the school formula.
+ * Calculate fixed-grid and rotated-board corners according to the school formula.
  * @par Primary contributor
  * Hao Guo (rotation and board rendering geometry).
  */
@@ -43,7 +47,7 @@ GuiBoardGeometry calculate_board_geometry(
     float screen_width,
     float screen_height);
 
-/** Convert a logical board coordinate into a screen coordinate. */
+/** Convert a fixed integer board coordinate into a screen coordinate. */
 GuiPoint board_coordinate_to_screen(
     const GuiBoardGeometry& geometry,
     int x,
