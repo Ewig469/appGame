@@ -246,10 +246,11 @@ void Board::apply_move(preset::Move move) {
     // Check game end
     if (check_win(pid)) {
         phase_ = GamePhase::kFinished;
-        preset::Logger::info("Player " + std::to_string(pid) + " has won!");
+        preset::Logger::debug(
+            "Internal player " + std::to_string(pid) + " has won");
     } else if (check_draw()) {
         phase_ = GamePhase::kDraw;
-        preset::Logger::info("Draw!");
+        preset::Logger::debug("Internal board reached a draw");
     }
 
     turn_++;
