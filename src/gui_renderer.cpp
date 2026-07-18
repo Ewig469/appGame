@@ -34,13 +34,21 @@ namespace {
 constexpr Color kBackground{241, 245, 249, 255};
 constexpr Color kBoardBackground{255, 255, 255, 255};
 constexpr Color kGridColor{148, 163, 184, 130};
+constexpr Color kOuterBoundaryColor{100, 116, 139, 210};
 constexpr Color kTextColor{30, 41, 59, 255};
 constexpr Color kSecondaryText{100, 116, 139, 255};
-constexpr Color kFixedPointColor{100, 116, 139, 95};
+constexpr Color kInactivePointColor{100, 116, 139, 90};
 constexpr Color kPointColor{100, 116, 139, 255};
 constexpr Color kWinningColor{250, 204, 21, 255};
 
 using BoardGeometry = GuiBoardGeometry;
+
+struct BoardBoundary {
+    Vector2 top_left;
+    Vector2 top_right;
+    Vector2 bottom_right;
+    Vector2 bottom_left;
+};
 
 /** Convert renderer-independent GUI coordinates to a Raylib vector. */
 Vector2 to_vector(GuiPoint point) {
@@ -114,10 +122,165 @@ BoardGeometry make_geometry(const Board& board) {
  */
 Vector2 board_to_screen(
     const BoardGeometry& geometry,
+    float x,
+    float y) {
+
+    return {
+        geometry.grid_top_left.x + geometry.x_step.x * x +
+            geometry.y_step.x * y,
+        geometry.grid_top_left.y + geometry.x_step.y * x +
+            geometry.y_step.y * y
+    };
+}
+
+Vector2 board_to_screen(
+    const BoardGeometry& geometry,
     int x,
     int y) {
 
-    return to_vector(board_coordinate_to_screen(geometry, x, y));
+    return board_to_screen(
+        geometry,
+        static_cast<float>(x),
+        static_cast<float>(y));
+}
+
+BoardBoundary boundary_for_inset(
+    const BoardGeometry& geometry,
+    const Board& board,
+    float inset) {
+
+    const float fraction =
+        static_cast<float>(board.get_rotation_fraction());
+    const float left = inset;
+    const float top = inset;
+    const float right =
+        static_cast<float>(board.get_width() - 1) - inset;
+    const float bottom =
+        static_cast<float>(board.get_height() - 1) - inset;
+    const float rect_width = std::max(0.0F, right - left);
+    const float rect_height = std::max(0.0F, bottom - top);
+
+    return BoardBoundary{
+        board_to_screen(
+            geometry,
+            left + fraction * rect_width,
+            top),
+        board_to_screen(
+            geometry,
+            right,
+            top + fraction * rect_height),
+        board_to_screen(
+            geometry,
+            right - fraction * rect_width,
+            bottom),
+        board_to_screen(
+            geometry,
+            left,
+            bottom - fraction * rect_height)
+    };
+}
+
+void draw_quad(
+    Vector2 first,
+    Vector2 second,
+    Vector2 third,
+    Vector2 fourth,
+    Color color) {
+
+    DrawTriangle(first, second, third, color);
+    DrawTriangle(first, third, fourth, color);
+}
+
+Vector2 line_intersection(
+    Vector2 first_start,
+    Vector2 first_end,
+    Vector2 second_start,
+    Vector2 second_end) {
+
+    const float first_dx = first_end.x - first_start.x;
+    const float first_dy = first_end.y - first_start.y;
+    const float second_dx = second_end.x - second_start.x;
+    const float second_dy = second_end.y - second_start.y;
+    const float denominator =
+        first_dx * second_dy - first_dy * second_dx;
+
+    if (std::abs(denominator) < 0.0001F) {
+        return first_start;
+    }
+
+    const float t =
+        ((second_start.x - first_start.x) * second_dy -
+         (second_start.y - first_start.y) * second_dx) /
+        denominator;
+    return {
+        first_start.x + t * first_dx,
+        first_start.y + t * first_dy
+    };
+}
+
+void mask_corner_overlaps(
+    const BoardBoundary& outer,
+    const BoardBoundary& inner) {
+
+    draw_quad(
+        outer.top_left,
+        line_intersection(
+            outer.top_left,
+            outer.top_right,
+            inner.top_left,
+            inner.bottom_left),
+        inner.top_left,
+        line_intersection(
+            outer.top_left,
+            outer.bottom_left,
+            inner.top_left,
+            inner.top_right),
+        kBoardBackground);
+
+    draw_quad(
+        outer.top_right,
+        line_intersection(
+            outer.top_right,
+            outer.bottom_right,
+            inner.top_left,
+            inner.top_right),
+        inner.top_right,
+        line_intersection(
+            outer.top_left,
+            outer.top_right,
+            inner.top_right,
+            inner.bottom_right),
+        kBoardBackground);
+
+    draw_quad(
+        outer.bottom_right,
+        line_intersection(
+            outer.bottom_right,
+            outer.bottom_left,
+            inner.top_right,
+            inner.bottom_right),
+        inner.bottom_right,
+        line_intersection(
+            outer.top_right,
+            outer.bottom_right,
+            inner.bottom_left,
+            inner.bottom_right),
+        kBoardBackground);
+
+    draw_quad(
+        outer.bottom_left,
+        line_intersection(
+            outer.bottom_left,
+            outer.top_left,
+            inner.bottom_left,
+            inner.bottom_right),
+        inner.bottom_left,
+        line_intersection(
+            outer.bottom_right,
+            outer.bottom_left,
+            inner.top_left,
+            inner.bottom_left),
+        kBoardBackground);
 }
 
 /**
@@ -385,17 +548,55 @@ void GuiRenderer::draw_frame() {
         colors,
         feedback_);
 
-    // Hao Guo: render the board background.
-    DrawTriangle(
-        to_vector(geometry.top_left),
-        to_vector(geometry.top_right),
-        to_vector(geometry.bottom_right),
+    // Hao Guo: render the board background and the visible goal areas.
+    const BoardBoundary outer_boundary = boundary_for_inset(
+        geometry,
+        board_,
+        0.0F);
+    const BoardBoundary inner_boundary = boundary_for_inset(
+        geometry,
+        board_,
+        1.0F);
+
+    draw_quad(
+        outer_boundary.top_left,
+        outer_boundary.top_right,
+        outer_boundary.bottom_right,
+        outer_boundary.bottom_left,
         kBoardBackground);
 
-    DrawTriangle(
-        to_vector(geometry.top_left),
-        to_vector(geometry.bottom_right),
-        to_vector(geometry.bottom_left),
+    draw_quad(
+        outer_boundary.top_left,
+        outer_boundary.top_right,
+        inner_boundary.top_right,
+        inner_boundary.top_left,
+        Color{colors[0].r, colors[0].g, colors[0].b, 34});
+    draw_quad(
+        inner_boundary.bottom_left,
+        inner_boundary.bottom_right,
+        outer_boundary.bottom_right,
+        outer_boundary.bottom_left,
+        Color{colors[0].r, colors[0].g, colors[0].b, 34});
+    draw_quad(
+        outer_boundary.top_left,
+        inner_boundary.top_left,
+        inner_boundary.bottom_left,
+        outer_boundary.bottom_left,
+        Color{colors[1].r, colors[1].g, colors[1].b, 34});
+    draw_quad(
+        inner_boundary.top_right,
+        outer_boundary.top_right,
+        outer_boundary.bottom_right,
+        inner_boundary.bottom_right,
+        Color{colors[1].r, colors[1].g, colors[1].b, 34});
+
+    mask_corner_overlaps(outer_boundary, inner_boundary);
+
+    draw_quad(
+        inner_boundary.top_left,
+        inner_boundary.top_right,
+        inner_boundary.bottom_right,
+        inner_boundary.bottom_left,
         kBoardBackground);
 
     // Hao Guo: render the fixed coordinate grid.
@@ -421,48 +622,60 @@ void GuiRenderer::draw_frame() {
             kGridColor);
     }
 
-    // Hao Guo: render the complete fixed coordinate point lattice. Rotation
-    // changes the scaled board boundary, not the X/Y coordinate spacing.
-    const float fixed_point_radius =
-        std::clamp(step * 0.045F, 0.7F, 1.8F);
-    for (int y = 0; y < board_.get_height(); ++y) {
-        for (int x = 0; x < board_.get_width(); ++x) {
-            DrawCircleV(
-                board_to_screen(geometry, x, y),
-                fixed_point_radius,
-                kFixedPointColor);
-        }
-    }
-
-    // Hao Guo: render the goal edges. Player 1 owns top/bottom; player 2
-    // owns left/right.
+    // Hao Guo: render the neutral outer boundary and the inset winning lines.
     DrawLineEx(
-        to_vector(geometry.top_left),
-        to_vector(geometry.top_right),
+        outer_boundary.top_left,
+        outer_boundary.top_right,
+        2.0F,
+        kOuterBoundaryColor);
+
+    DrawLineEx(
+        outer_boundary.top_right,
+        outer_boundary.bottom_right,
+        2.0F,
+        kOuterBoundaryColor);
+
+    DrawLineEx(
+        outer_boundary.bottom_right,
+        outer_boundary.bottom_left,
+        2.0F,
+        kOuterBoundaryColor);
+
+    DrawLineEx(
+        outer_boundary.bottom_left,
+        outer_boundary.top_left,
+        2.0F,
+        kOuterBoundaryColor);
+
+    DrawLineEx(
+        inner_boundary.top_left,
+        inner_boundary.top_right,
         6.0F,
         colors[0]);
 
     DrawLineEx(
-        to_vector(geometry.bottom_left),
-        to_vector(geometry.bottom_right),
+        inner_boundary.bottom_left,
+        inner_boundary.bottom_right,
         6.0F,
         colors[0]);
 
     DrawLineEx(
-        to_vector(geometry.top_left),
-        to_vector(geometry.bottom_left),
+        inner_boundary.top_left,
+        inner_boundary.bottom_left,
         6.0F,
         colors[1]);
 
     DrawLineEx(
-        to_vector(geometry.top_right),
-        to_vector(geometry.bottom_right),
+        inner_boundary.top_right,
+        inner_boundary.bottom_right,
         6.0F,
         colors[1]);
 
-    // Hao Guo: render valid board points and mark overlapping corner areas.
+    // Hao Guo: render playable coordinates and keep corner overlap points faint.
     const float point_radius =
         std::clamp(step * 0.065F, 0.9F, 2.2F);
+    const float inactive_point_radius =
+        std::clamp(step * 0.045F, 0.7F, 1.8F);
 
     for (int y = 0; y < board_.get_height(); ++y) {
         for (int x = 0; x < board_.get_width(); ++x) {
@@ -475,19 +688,10 @@ void GuiRenderer::draw_frame() {
                 board_to_screen(geometry, x, y);
 
             if (is_corner(board_, x, y)) {
-                const float arm = 3.0F;
-
-                DrawLineEx(
-                    {point.x - arm, point.y - arm},
-                    {point.x + arm, point.y + arm},
-                    1.5F,
-                    kPointColor);
-
-                DrawLineEx(
-                    {point.x - arm, point.y + arm},
-                    {point.x + arm, point.y - arm},
-                    1.5F,
-                    kPointColor);
+                DrawCircleV(
+                    point,
+                    inactive_point_radius,
+                    kInactivePointColor);
             } else {
                 DrawCircleV(
                     point,

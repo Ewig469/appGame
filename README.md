@@ -32,9 +32,7 @@ cmake -S . -B build -DCMAKE_BUILD_TYPE=Release
 cmake --build build --parallel
 ```
 
-The executable is usually created as `build/knight_bridge`. With
-multi-configuration generators such as Visual Studio, it may be located at
-`build/Release/knight_bridge.exe`.
+
 
 Run the tests with:
 
