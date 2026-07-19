@@ -21,8 +21,6 @@ namespace bruecken {
 inline constexpr int kBoardMinSize = 5;
 /// Maximum board width/height
 inline constexpr int kBoardMaxSize = 96;
-/// Default board size
-inline constexpr int kDefaultBoardSize = 24;
 /// Minimum rotation in degrees
 inline constexpr double kMinRotation = 0.0;
 /// Maximum rotation in degrees
@@ -71,17 +69,6 @@ enum class Direction {
     kRight,
     kNone  ///< neutral / overlapping zone
 };
-
-/// Returns the opposite direction.
-inline Direction opposite(Direction d) {
-    switch (d) {
-        case Direction::kTop:    return Direction::kBottom;
-        case Direction::kBottom: return Direction::kTop;
-        case Direction::kLeft:   return Direction::kRight;
-        case Direction::kRight:  return Direction::kLeft;
-        default:                 return Direction::kNone;
-    }
-}
 
 // =====================================================================
 // Peg

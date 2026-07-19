@@ -397,8 +397,6 @@ int main()
 
         test_player_board_synchronization(config);
 
-        // test_rotation_initialization();
-
         test_large_board();
 
         std::cout << "All player contract tests passed.\n";

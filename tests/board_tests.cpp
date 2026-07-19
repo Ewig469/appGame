@@ -94,10 +94,10 @@ void test_unrotated_corner_areas_are_not_playable() {
     bruecken::Board board(5, 5);
 
     const std::vector<bruecken::Position> corner_positions = {
-        {0, 0}, {1, 0}, {0, 1}, {1, 1},
-        {3, 0}, {4, 0}, {3, 1}, {4, 1},
-        {0, 3}, {1, 3}, {0, 4}, {1, 4},
-        {3, 3}, {4, 3}, {3, 4}, {4, 4},
+        {0, 0},
+        {4, 0},
+        {0, 4},
+        {4, 4},
     };
 
     for (const bruecken::Position& pos : corner_positions) {
@@ -109,12 +109,12 @@ void test_unrotated_corner_areas_are_not_playable() {
 
     require(board.get_direction({2, 0}) == bruecken::Direction::kTop,
             "The top edge strip must still belong to player 1");
-    require(board.get_direction({2, 1}) == bruecken::Direction::kTop,
-            "The inner top edge line belongs to the top boundary strip");
     require(board.get_direction({0, 2}) == bruecken::Direction::kLeft,
             "The left edge strip must still belong to player 2");
-    require(board.get_direction({1, 2}) == bruecken::Direction::kLeft,
-            "The inner left edge line belongs to the left boundary strip");
+    require(board.get_direction({2, 1}) == bruecken::Direction::kNone,
+            "Points strictly inside the inner rectangle are neutral");
+    require(board.get_direction({1, 2}) == bruecken::Direction::kNone,
+            "Points strictly inside the inner rectangle are neutral");
 
     require(board.is_playable({2, 0}, 0),
             "Player 1 must be allowed to play on the top boundary");
@@ -124,6 +124,10 @@ void test_unrotated_corner_areas_are_not_playable() {
             "Player 2 must be allowed to play on the left boundary");
     require(!board.is_playable({0, 2}, 0),
             "Player 1 must not play on player 2's left boundary");
+    require(board.is_playable({1, 1}, 0),
+            "The first inner point must be playable by player 1");
+    require(board.is_playable({1, 1}, 1),
+            "The first inner point must be playable by player 2");
 }
 
 void test_rotation_scales_board_inside_fixed_grid() {

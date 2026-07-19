@@ -39,6 +39,8 @@ constexpr Color kTextColor{30, 41, 59, 255};
 constexpr Color kSecondaryText{100, 116, 139, 255};
 constexpr Color kInactivePointColor{100, 116, 139, 90};
 constexpr Color kPointColor{100, 116, 139, 255};
+constexpr Color kForbiddenFillColor{15, 23, 42, 34};
+constexpr Color kForbiddenMarkColor{15, 23, 42, 185};
 constexpr Color kWinningColor{250, 204, 21, 255};
 
 using BoardGeometry = GuiBoardGeometry;
@@ -151,12 +153,12 @@ BoardBoundary boundary_for_inset(
 
     const float fraction =
         static_cast<float>(board.get_rotation_fraction());
-    const float left = inset;
-    const float top = inset;
+    const float left = inset - 0.5F;
+    const float top = inset - 0.5F;
     const float right =
-        static_cast<float>(board.get_width() - 1) - inset;
+        static_cast<float>(board.get_width()) - 0.5F - inset;
     const float bottom =
-        static_cast<float>(board.get_height() - 1) - inset;
+        static_cast<float>(board.get_height()) - 0.5F - inset;
     const float rect_width = std::max(0.0F, right - left);
     const float rect_height = std::max(0.0F, bottom - top);
 
@@ -333,8 +335,107 @@ void draw_centered_text(
         color);
 }
 
-/** @brief Places a coordinate label outside the board, away from its center. */
-Vector2 label_position(
+void draw_forbidden_marker(Vector2 center, float size, float width) {
+    DrawLineEx(
+        {center.x - size, center.y - size},
+        {center.x + size, center.y + size},
+        width,
+        kForbiddenMarkColor);
+    DrawLineEx(
+        {center.x - size, center.y + size},
+        {center.x + size, center.y - size},
+        width,
+        kForbiddenMarkColor);
+}
+
+Vector2 quad_center(
+    Vector2 first,
+    Vector2 second,
+    Vector2 third,
+    Vector2 fourth) {
+
+    return {
+        (first.x + second.x + third.x + fourth.x) * 0.25F,
+        (first.y + second.y + third.y + fourth.y) * 0.25F
+    };
+}
+
+void draw_forbidden_corner_markers(
+    const BoardBoundary& outer,
+    const BoardBoundary& inner,
+    float marker_size,
+    float marker_width) {
+
+    draw_forbidden_marker(
+        quad_center(
+            outer.top_left,
+            line_intersection(
+                outer.top_left,
+                outer.top_right,
+                inner.top_left,
+                inner.bottom_left),
+            inner.top_left,
+            line_intersection(
+                outer.top_left,
+                outer.bottom_left,
+                inner.top_left,
+                inner.top_right)),
+        marker_size,
+        marker_width);
+
+    draw_forbidden_marker(
+        quad_center(
+            outer.top_right,
+            line_intersection(
+                outer.top_right,
+                outer.bottom_right,
+                inner.top_left,
+                inner.top_right),
+            inner.top_right,
+            line_intersection(
+                outer.top_left,
+                outer.top_right,
+                inner.top_right,
+                inner.bottom_right)),
+        marker_size,
+        marker_width);
+
+    draw_forbidden_marker(
+        quad_center(
+            outer.bottom_right,
+            line_intersection(
+                outer.bottom_right,
+                outer.bottom_left,
+                inner.top_right,
+                inner.bottom_right),
+            inner.bottom_right,
+            line_intersection(
+                outer.top_right,
+                outer.bottom_right,
+                inner.bottom_left,
+                inner.bottom_right)),
+        marker_size,
+        marker_width);
+
+    draw_forbidden_marker(
+        quad_center(
+            outer.bottom_left,
+            line_intersection(
+                outer.bottom_left,
+                outer.top_left,
+                inner.bottom_left,
+                inner.bottom_right),
+            inner.bottom_left,
+            line_intersection(
+                outer.bottom_right,
+                outer.bottom_left,
+                inner.top_left,
+                inner.bottom_left)),
+        marker_size,
+        marker_width);
+}
+
+Vector2 outward_position(
     Vector2 point,
     Vector2 center,
     float distance) {
@@ -557,6 +658,10 @@ void GuiRenderer::draw_frame() {
         geometry,
         board_,
         1.0F);
+    const BoardBoundary target_line_boundary = boundary_for_inset(
+        geometry,
+        board_,
+        1.0F);
 
     draw_quad(
         outer_boundary.top_left,
@@ -570,27 +675,87 @@ void GuiRenderer::draw_frame() {
         outer_boundary.top_right,
         inner_boundary.top_right,
         inner_boundary.top_left,
-        Color{colors[0].r, colors[0].g, colors[0].b, 34});
+        Color{colors[0].r, colors[0].g, colors[0].b, 46});
     draw_quad(
         inner_boundary.bottom_left,
         inner_boundary.bottom_right,
         outer_boundary.bottom_right,
         outer_boundary.bottom_left,
-        Color{colors[0].r, colors[0].g, colors[0].b, 34});
+        Color{colors[0].r, colors[0].g, colors[0].b, 46});
     draw_quad(
         outer_boundary.top_left,
         inner_boundary.top_left,
         inner_boundary.bottom_left,
         outer_boundary.bottom_left,
-        Color{colors[1].r, colors[1].g, colors[1].b, 34});
+        Color{colors[1].r, colors[1].g, colors[1].b, 46});
     draw_quad(
         inner_boundary.top_right,
         outer_boundary.top_right,
         outer_boundary.bottom_right,
         inner_boundary.bottom_right,
-        Color{colors[1].r, colors[1].g, colors[1].b, 34});
+        Color{colors[1].r, colors[1].g, colors[1].b, 46});
 
     mask_corner_overlaps(outer_boundary, inner_boundary);
+
+    draw_quad(
+        outer_boundary.top_left,
+        line_intersection(
+            outer_boundary.top_left,
+            outer_boundary.top_right,
+            inner_boundary.top_left,
+            inner_boundary.bottom_left),
+        inner_boundary.top_left,
+        line_intersection(
+            outer_boundary.top_left,
+            outer_boundary.bottom_left,
+            inner_boundary.top_left,
+            inner_boundary.top_right),
+        kForbiddenFillColor);
+
+    draw_quad(
+        outer_boundary.top_right,
+        line_intersection(
+            outer_boundary.top_right,
+            outer_boundary.bottom_right,
+            inner_boundary.top_left,
+            inner_boundary.top_right),
+        inner_boundary.top_right,
+        line_intersection(
+            outer_boundary.top_left,
+            outer_boundary.top_right,
+            inner_boundary.top_right,
+            inner_boundary.bottom_right),
+        kForbiddenFillColor);
+
+    draw_quad(
+        outer_boundary.bottom_right,
+        line_intersection(
+            outer_boundary.bottom_right,
+            outer_boundary.bottom_left,
+            inner_boundary.top_right,
+            inner_boundary.bottom_right),
+        inner_boundary.bottom_right,
+        line_intersection(
+            outer_boundary.top_right,
+            outer_boundary.bottom_right,
+            inner_boundary.bottom_left,
+            inner_boundary.bottom_right),
+        kForbiddenFillColor);
+
+    draw_quad(
+        outer_boundary.bottom_left,
+        line_intersection(
+            outer_boundary.bottom_left,
+            outer_boundary.top_left,
+            inner_boundary.bottom_left,
+            inner_boundary.bottom_right),
+        inner_boundary.bottom_left,
+        line_intersection(
+            outer_boundary.bottom_right,
+            outer_boundary.bottom_left,
+            inner_boundary.top_left,
+            inner_boundary.bottom_left),
+        kForbiddenFillColor);
 
     draw_quad(
         inner_boundary.top_left,
@@ -648,26 +813,26 @@ void GuiRenderer::draw_frame() {
         kOuterBoundaryColor);
 
     DrawLineEx(
-        inner_boundary.top_left,
-        inner_boundary.top_right,
+        target_line_boundary.top_left,
+        target_line_boundary.top_right,
         6.0F,
         colors[0]);
 
     DrawLineEx(
-        inner_boundary.bottom_left,
-        inner_boundary.bottom_right,
+        target_line_boundary.bottom_left,
+        target_line_boundary.bottom_right,
         6.0F,
         colors[0]);
 
     DrawLineEx(
-        inner_boundary.top_left,
-        inner_boundary.bottom_left,
+        target_line_boundary.top_left,
+        target_line_boundary.bottom_left,
         6.0F,
         colors[1]);
 
     DrawLineEx(
-        inner_boundary.top_right,
-        inner_boundary.bottom_right,
+        target_line_boundary.top_right,
+        target_line_boundary.bottom_right,
         6.0F,
         colors[1]);
 
@@ -700,6 +865,12 @@ void GuiRenderer::draw_frame() {
             }
         }
     }
+
+    draw_forbidden_corner_markers(
+        outer_boundary,
+        inner_boundary,
+        std::clamp(step * 0.22F, 3.5F, 8.0F),
+        std::clamp(step * 0.055F, 1.0F, 1.6F));
 
     // Hao Guo: render normal bridges below the pegs.
     for (const Bridge& bridge : board_.get_bridges()) {
@@ -762,7 +933,7 @@ void GuiRenderer::draw_frame() {
             colors[player]);
     }
 
-    // Hao Guo: render readable board-coordinate labels.
+    // Hao Guo: render readable board-coordinate labels outside the frame.
     const auto x_labels = coordinate_label_values(
         board_.get_width(),
         length(to_vector(geometry.x_step)));
@@ -771,26 +942,34 @@ void GuiRenderer::draw_frame() {
         length(to_vector(geometry.y_step)));
 
     for (const int x : x_labels) {
+        const Vector2 anchor = board_to_screen(
+            geometry,
+            static_cast<float>(x),
+            -0.5F);
         draw_centered_text(
             std::to_string(x),
-            label_position(
-                board_to_screen(geometry, x, 0),
+            outward_position(
+                anchor,
                 to_vector(geometry.center),
-                17.0F),
-            13,
+                18.0F),
+            12,
             kSecondaryText);
     }
 
     for (const int y : y_labels) {
         if (y == 0) continue;
 
+        const Vector2 anchor = board_to_screen(
+            geometry,
+            -0.5F,
+            static_cast<float>(y));
         draw_centered_text(
             std::to_string(y),
-            label_position(
-                board_to_screen(geometry, 0, y),
+            outward_position(
+                anchor,
                 to_vector(geometry.center),
-                17.0F),
-            13,
+                18.0F),
+            12,
             kSecondaryText);
     }
 

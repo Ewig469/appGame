@@ -65,8 +65,8 @@ public:
     /**
      * @brief Returns which boundary area this position belongs to.
      *
-     *  - Rotated inner (N-2)x(M-2) area -> kNone
-     *  - Rotated boundary strips -> kTop/kBottom/kLeft/kRight
+     *  - Strictly inside the rotated (N-2)x(M-2) area -> kNone
+     *  - Rotated boundary strips, including the inner edges -> kTop/kBottom/kLeft/kRight
      *  - Overlapping corner strips -> kNone
      */
     Direction get_direction(const Position& pos) const;

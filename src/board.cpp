@@ -147,10 +147,10 @@ bool Board::is_grid_coordinate(const Position& pos) const {
 
 Board::BoardPolygon Board::rotated_polygon(double inset) const {
     const double fraction = get_rotation_fraction();
-    const double left = inset;
-    const double top = inset;
-    const double right = static_cast<double>(width_ - 1) - inset;
-    const double bottom = static_cast<double>(height_ - 1) - inset;
+    const double left = inset - 0.5;
+    const double top = inset - 0.5;
+    const double right = static_cast<double>(width_) - 0.5 - inset;
+    const double bottom = static_cast<double>(height_) - 0.5 - inset;
     const double rect_width = std::max(0.0, right - left);
     const double rect_height = std::max(0.0, bottom - top);
 
